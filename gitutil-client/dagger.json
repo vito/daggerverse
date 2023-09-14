@@ -1,0 +1,8 @@
+{
+  "root": "",
+  "name": "gitutilClient",
+  "sdk": "go",
+  "dependencies": [
+    "github.com/vito/dagger-gitutil@8fe8cd4de73a6fa4022fd90a9477d9500a683ff8"
+  ]
+}
