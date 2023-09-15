@@ -3724,7 +3724,7 @@ func invoke(ctx context.Context, parentJSON []byte, parentName string, fnName st
 			return (*Apko).Wolfi(&parent, ctx, packages)
 		case "":
 			var err error
-			var typeDefBytes []byte = []byte("{\"asObject\":{\"functions\":[{\"args\":[{\"name\":\"packages\",\"typeDef\":{\"asList\":{\"elementTypeDef\":{\"kind\":\"StringKind\"}},\"kind\":\"ListKind\"}}],\"name\":\"Alpine\",\"returnType\":{\"asObject\":{\"name\":\"Container\"},\"kind\":\"ObjectKind\"}},{\"args\":[{\"name\":\"packages\",\"typeDef\":{\"asList\":{\"elementTypeDef\":{\"kind\":\"StringKind\"}},\"kind\":\"ListKind\"}}],\"name\":\"Wolfi\",\"returnType\":{\"asObject\":{\"name\":\"Container\"},\"kind\":\"ObjectKind\"}}],\"name\":\"Apko\"},\"kind\":\"ObjectKind\"}")
+			var typeDefBytes []byte = []byte("{\"asObject\":{\"functions\":[{\"args\":[{\"name\":\"packages\",\"typeDef\":{\"asList\":{\"elementTypeDef\":{\"kind\":\"StringKind\"}},\"kind\":\"ListKind\"}}],\"description\":\"Alpine returns a Container with the specified packages installed from Alpine\\nrepositories.\\n\",\"name\":\"Alpine\",\"returnType\":{\"asObject\":{\"name\":\"Container\"},\"kind\":\"ObjectKind\"}},{\"args\":[{\"name\":\"packages\",\"typeDef\":{\"asList\":{\"elementTypeDef\":{\"kind\":\"StringKind\"}},\"kind\":\"ListKind\"}}],\"description\":\"Wolfi returns a Container with the specified packages installed from Wolfi\\nOS repositories.\\n\",\"name\":\"Wolfi\",\"returnType\":{\"asObject\":{\"name\":\"Container\"},\"kind\":\"ObjectKind\"}}],\"name\":\"Apko\"},\"kind\":\"ObjectKind\"}")
 			var typeDef TypeDefInput
 			err = json.Unmarshal(typeDefBytes, &typeDef)
 			if err != nil {
