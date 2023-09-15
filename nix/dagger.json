@@ -1,0 +1,5 @@
+{
+  "root": "",
+  "name": "nix",
+  "sdk": "go"
+}
