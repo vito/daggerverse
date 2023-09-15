@@ -7,8 +7,11 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// Apko provides utilities for bootstrapping containers from simple package lists.
 type Apko struct{}
 
+// Alpine returns a Container with the specified packages installed from Alpine
+// repositories.
 func (Apko) Alpine(ctx context.Context, packages []string) (*Container, error) {
 	ic := baseConfig()
 	ic["contents"] = cfg{
@@ -20,6 +23,8 @@ func (Apko) Alpine(ctx context.Context, packages []string) (*Container, error) {
 	return apko(ic)
 }
 
+// Wolfi returns a Container with the specified packages installed from Wolfi
+// OS repositories.
 func (Apko) Wolfi(ctx context.Context, packages []string) (*Container, error) {
 	ic := baseConfig()
 	ic["contents"] = cfg{
