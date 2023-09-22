@@ -3902,12 +3902,11 @@ func invoke(ctx context.Context, parentJSON []byte, parentName string, fnName st
 				os.Exit(2)
 			}
 			return (*Apko).Wolfi(&parent, ctx, packages)
-		case "":
-			mod := dag.CurrentModule().WithObject(dag.TypeDef().WithObject("Apko").WithFunction(dag.NewFunction("Alpine", dag.TypeDef().WithObject("Container")).WithDescription("Alpine returns a Container with the specified packages installed from Alpine\nrepositories.\n").WithArg("packages", dag.TypeDef().WithListOf(dag.TypeDef().WithKind(Stringkind)))).WithFunction(dag.NewFunction("Wolfi", dag.TypeDef().WithObject("Container")).WithDescription("Wolfi returns a Container with the specified packages installed from Wolfi\nOS repositories.\n").WithArg("packages", dag.TypeDef().WithListOf(dag.TypeDef().WithKind(Stringkind)))))
-			return mod, nil
 		default:
 			return nil, fmt.Errorf("unknown function %s", fnName)
 		}
+	case "":
+		return dag.CurrentModule().WithObject(dag.TypeDef().WithObject("Apko").WithFunction(dag.NewFunction("Alpine", dag.TypeDef().WithObject("Container")).WithDescription("Alpine returns a Container with the specified packages installed from Alpine\nrepositories.\n").WithArg("packages", dag.TypeDef().WithListOf(dag.TypeDef().WithKind(Stringkind)))).WithFunction(dag.NewFunction("Wolfi", dag.TypeDef().WithObject("Container")).WithDescription("Wolfi returns a Container with the specified packages installed from Wolfi\nOS repositories.\n").WithArg("packages", dag.TypeDef().WithListOf(dag.TypeDef().WithKind(Stringkind))))), nil
 	default:
 		return nil, fmt.Errorf("unknown object %s", parentName)
 	}
