@@ -47,5 +47,7 @@ func (m *Concourse) postgresql(ctx context.Context, opts CreateOpts) *Service {
 		WithEnvVariable("POSTGRES_DB", "modules").
 		WithEnvVariable("POSTGRES_USER", "modules").
 		WithEnvVariable("POSTGRES_PASSWORD", "modules").
+		WithEnvVariable("PGDATA", "/database").
+		WithMountedCache("/database", dag.CacheVolume("concourse-db")).
 		Service()
 }
