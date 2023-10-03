@@ -14,7 +14,7 @@ import (
 
 	"github.com/Khan/genqlient/graphql"
 
-	"apko/querybuilder"
+	"main/internal/querybuilder"
 )
 
 // assertNotNil panic if the given value is nil.
@@ -41,10 +41,13 @@ type DirectoryID string
 // A file identifier.
 type FileID string
 
+// A reference to a Function.
 type FunctionID string
 
+// An arbitrary JSON-encoded value.
 type JSON string
 
+// A reference to a Module.
 type ModuleID string
 
 // The platform config OS and architecture in a Container.
@@ -58,8 +61,12 @@ type SecretID string
 // A content-addressed socket identifier.
 type SocketID string
 
+// A reference to a TypeDef.
 type TypeDefID string
 
+// The absense of a value.
+//
+// A Null Void is used as a placeholder for resolvers that do not return anything.
 type Void string
 
 // Key value object that represents a build argument.
@@ -92,6 +99,35 @@ type PipelineLabel struct {
 
 	// Label value.
 	Value string `json:"value,omitempty"`
+}
+
+type Apko struct {
+	q *querybuilder.Selection
+	c graphql.Client
+}
+
+// Alpine returns a Container with the specified packages installed from Alpine
+// repositories.
+func (r *Apko) Alpine(packages []string) *Container {
+	q := r.q.Select("alpine")
+	q = q.Arg("packages", packages)
+
+	return &Container{
+		q: q,
+		c: r.c,
+	}
+}
+
+// Wolfi returns a Container with the specified packages installed from Wolfi
+// OS repositories.
+func (r *Apko) Wolfi(packages []string) *Container {
+	q := r.q.Select("wolfi")
+	q = q.Arg("packages", packages)
+
+	return &Container{
+		q: q,
+		c: r.c,
+	}
 }
 
 // A directory whose contents persist across runs.
@@ -1456,25 +1492,35 @@ func (r *Directory) With(f WithDirectoryFunc) *Directory {
 
 // DirectoryAsModuleOpts contains options for Directory.AsModule
 type DirectoryAsModuleOpts struct {
+	// An optional subpath of the directory which contains the module's source
+	// code.
+	//
+	// This is needed when the module code is in a subdirectory but requires
+	// parent directories to be loaded in order to execute. For example, the
+	// module source code may need a go.mod, project.toml, package.json, etc. file
+	// from a parent directory.
+	//
+	// If not set, the module source code is loaded from the root of the
+	// directory.
 	SourceSubpath string
+	// A pre-built runtime container to use instead of building one from the
+	// source code. This is useful for bootstrapping.
+	//
+	// You should ignore this unless you're building a Dagger SDK.
+	Runtime *Container
 }
 
 // Load the directory as a Dagger module
-//
-// sourceSubpath is an optional parameter that, if set, points to a subpath of this
-// directory that contains the module's source code. This is needed when the module
-// code is in a subdirectory but requires parent directories to be loaded in order
-// to execute. For example, the module source code may need a go.mod, project.toml,
-// package.json, etc. file from a parent directory.
-//
-// If sourceSubpath is not set, the module source code is loaded from the root of
-// the directory.
 func (r *Directory) AsModule(opts ...DirectoryAsModuleOpts) *Module {
 	q := r.q.Select("asModule")
 	for i := len(opts) - 1; i >= 0; i-- {
 		// `sourceSubpath` optional argument
 		if !querybuilder.IsZeroValue(opts[i].SourceSubpath) {
 			q = q.Arg("sourceSubpath", opts[i].SourceSubpath)
+		}
+		// `runtime` optional argument
+		if !querybuilder.IsZeroValue(opts[i].Runtime) {
+			q = q.Arg("runtime", opts[i].Runtime)
 		}
 	}
 
@@ -2059,6 +2105,10 @@ func (r *File) WithTimestamps(timestamp int) *File {
 	}
 }
 
+// Function represents a resolver provided by a Module.
+//
+// A function always evaluates against a parent object and is given a set of
+// named arguments.
 type Function struct {
 	q *querybuilder.Selection
 	c graphql.Client
@@ -2153,6 +2203,7 @@ func (r *Function) Description(ctx context.Context) (string, error) {
 	return response, q.Execute(ctx, r.c)
 }
 
+// The ID of the function
 func (r *Function) ID(ctx context.Context) (FunctionID, error) {
 	if r.id != nil {
 		return *r.id, nil
@@ -2268,6 +2319,10 @@ func (r *Function) WithDescription(description string) *Function {
 	}
 }
 
+// An argument accepted by a function.
+//
+// This is a specification for an argument at function definition time, not an
+// argument passed at function call time.
 type FunctionArg struct {
 	q *querybuilder.Selection
 	c graphql.Client
@@ -2635,6 +2690,7 @@ func (r *Label) Value(ctx context.Context) (string, error) {
 	return response, q.Execute(ctx, r.c)
 }
 
+// A definition of a list type in a Module.
 type ListTypeDef struct {
 	q *querybuilder.Selection
 	c graphql.Client
@@ -2658,6 +2714,7 @@ type Module struct {
 	id                     *ModuleID
 	name                   *string
 	sdk                    *string
+	sdkRuntime             *string
 	serve                  *Void
 	sourceDirectorySubPath *string
 }
@@ -2722,6 +2779,16 @@ func (r *Module) Description(ctx context.Context) (string, error) {
 
 	q = q.Bind(&response)
 	return response, q.Execute(ctx, r.c)
+}
+
+// The code generated by the SDK's runtime
+func (r *Module) GeneratedCode() *Directory {
+	q := r.q.Select("generatedCode")
+
+	return &Directory{
+		q: q,
+		c: r.c,
+	}
 }
 
 // The ID of the module
@@ -2827,6 +2894,19 @@ func (r *Module) SDK(ctx context.Context) (string, error) {
 		return *r.sdk, nil
 	}
 	q := r.q.Select("sdk")
+
+	var response string
+
+	q = q.Bind(&response)
+	return response, q.Execute(ctx, r.c)
+}
+
+// The SDK runtime module image ref.
+func (r *Module) SDKRuntime(ctx context.Context) (string, error) {
+	if r.sdkRuntime != nil {
+		return *r.sdkRuntime, nil
+	}
+	q := r.q.Select("sdkRuntime")
 
 	var response string
 
@@ -3050,6 +3130,15 @@ type WithClientFunc func(r *Client) *Client
 // This is useful for reusability and readability by not breaking the calling chain.
 func (r *Client) With(f WithClientFunc) *Client {
 	return f(r)
+}
+
+func (r *Client) Apko() *Apko {
+	q := r.q.Select("apko")
+
+	return &Apko{
+		q: q,
+		c: r.c,
+	}
 }
 
 // Constructs a cache volume for a given cache key.
@@ -3870,43 +3959,27 @@ func main() {
 
 func invoke(ctx context.Context, parentJSON []byte, parentName string, fnName string, inputArgs map[string][]byte) (any, error) {
 	switch parentName {
-	case "Apko":
+	case "Main":
 		switch fnName {
-		case "Alpine":
+		case "Go":
 			var err error
-			var parent Apko
+			var parent Main
 			err = json.Unmarshal(parentJSON, &parent)
 			if err != nil {
 				fmt.Println(err.Error())
 				os.Exit(2)
 			}
-			var packages []string
-			err = json.Unmarshal([]byte(inputArgs["packages"]), &packages)
-			if err != nil {
-				fmt.Println(err.Error())
-				os.Exit(2)
-			}
-			return (*Apko).Alpine(&parent, ctx, packages)
-		case "Wolfi":
-			var err error
-			var parent Apko
-			err = json.Unmarshal(parentJSON, &parent)
-			if err != nil {
-				fmt.Println(err.Error())
-				os.Exit(2)
-			}
-			var packages []string
-			err = json.Unmarshal([]byte(inputArgs["packages"]), &packages)
-			if err != nil {
-				fmt.Println(err.Error())
-				os.Exit(2)
-			}
-			return (*Apko).Wolfi(&parent, ctx, packages)
+			return (*Main).Go(&parent, ctx), nil
 		default:
 			return nil, fmt.Errorf("unknown function %s", fnName)
 		}
 	case "":
-		return dag.CurrentModule().WithObject(dag.TypeDef().WithObject("Apko").WithFunction(dag.NewFunction("Alpine", dag.TypeDef().WithObject("Container")).WithDescription("Alpine returns a Container with the specified packages installed from Alpine\nrepositories.\n").WithArg("packages", dag.TypeDef().WithListOf(dag.TypeDef().WithKind(Stringkind)))).WithFunction(dag.NewFunction("Wolfi", dag.TypeDef().WithObject("Container")).WithDescription("Wolfi returns a Container with the specified packages installed from Wolfi\nOS repositories.\n").WithArg("packages", dag.TypeDef().WithListOf(dag.TypeDef().WithKind(Stringkind))))), nil
+		return dag.CurrentModule().
+			WithObject(
+				dag.TypeDef().WithObject("Main").
+					WithFunction(
+						dag.NewFunction("Go",
+							dag.TypeDef().WithObject("Container")))), nil
 	default:
 		return nil, fmt.Errorf("unknown object %s", parentName)
 	}

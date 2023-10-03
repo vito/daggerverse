@@ -1,5 +1,4 @@
 {
-  "root": "",
   "name": "apko",
-  "sdk": "go"
+  "sdkRuntime": "docker.io/vito/dagger-sdk-go:vcs@sha256:2290ca35a52e2ba9bb5b5266f4290cf8c223688c38191d3bbf7acefac20901a9"
 }

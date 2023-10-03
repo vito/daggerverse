@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"runtime"
 
 	"gopkg.in/yaml.v3"
@@ -12,7 +11,7 @@ type Apko struct{}
 
 // Alpine returns a Container with the specified packages installed from Alpine
 // repositories.
-func (Apko) Alpine(ctx context.Context, packages []string) (*Container, error) {
+func (Apko) Alpine(packages []string) (*Container, error) {
 	ic := baseConfig()
 	ic["contents"] = cfg{
 		"repositories": []string{
@@ -25,7 +24,7 @@ func (Apko) Alpine(ctx context.Context, packages []string) (*Container, error) {
 
 // Wolfi returns a Container with the specified packages installed from Wolfi
 // OS repositories.
-func (Apko) Wolfi(ctx context.Context, packages []string) (*Container, error) {
+func (Apko) Wolfi(packages []string) (*Container, error) {
 	ic := baseConfig()
 	ic["contents"] = cfg{
 		"repositories": []string{

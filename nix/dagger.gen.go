@@ -9,12 +9,25 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"reflect"
 	"strconv"
 
 	"github.com/Khan/genqlient/graphql"
 
-	"nix/querybuilder"
+	"nix/internal/querybuilder"
 )
+
+// assertNotNil panic if the given value is nil.
+// This function is used to validate that input with pointer type are not nil.
+// See https://github.com/dagger/dagger/issues/5696 for more context.
+func assertNotNil(argName string, value any) {
+	// We use reflect because just comparing value to nil is not working since
+	// the value is wrapped into a type when passed as parameter.
+	// E.g., nil become (*dagger.File)(nil).
+	if reflect.ValueOf(value).IsNil() {
+		panic(fmt.Sprintf("unexpected nil pointer for argument %q", argName))
+	}
+}
 
 // A global cache volume identifier.
 type CacheID string
@@ -28,10 +41,13 @@ type DirectoryID string
 // A file identifier.
 type FileID string
 
+// A reference to a Function.
 type FunctionID string
 
+// An arbitrary JSON-encoded value.
 type JSON string
 
+// A reference to a Module.
 type ModuleID string
 
 // The platform config OS and architecture in a Container.
@@ -45,6 +61,12 @@ type SecretID string
 // A content-addressed socket identifier.
 type SocketID string
 
+// A reference to a TypeDef.
+type TypeDefID string
+
+// The absense of a value.
+//
+// A Null Void is used as a placeholder for resolvers that do not return anything.
 type Void string
 
 // Key value object that represents a build argument.
@@ -56,80 +78,18 @@ type BuildArg struct {
 	Value string `json:"value,omitempty"`
 }
 
-// A definition of a field on a custom object defined in a Module.
-// A field on an object has a static value, as opposed to a function on an
-// object whose value is computed by invoking code (and can accept arguments).
-type FieldTypeDefInput struct {
-	// A doc string for the field, if any
-	Description string `json:"description,omitempty"`
-
-	// The name of the field in the object
-	Name string `json:"name,omitempty"`
-
-	// The type of the field
-	TypeDef *TypeDefInput `json:"typeDef,omitempty"`
-}
-
-type FunctionArgDef struct {
-	// A default value to use for this argument if not explicitly set by the caller, if any
-	DefaultValue JSON `json:"defaultValue,omitempty"`
-
-	// A doc string for the argument, if any
-	Description string `json:"description,omitempty"`
-
-	// The name of the argument
-	Name string `json:"name,omitempty"`
-
-	// The type of the argument
-	TypeDef *TypeDefInput `json:"typeDef,omitempty"`
-}
-
 type FunctionCallInput struct {
 	// The name of the argument to the function
 	Name string `json:"name,omitempty"`
 
-	// The value of the argument to the function, representing as a JSON-serialized string.
+	// The value of the argument represented as a string of the JSON serialization.
 	Value JSON `json:"value,omitempty"`
-}
-
-type FunctionDef struct {
-	// Arguments accepted by this function, if any
-	Args []*FunctionArgDef `json:"args,omitempty"`
-
-	// A doc string for the function, if any
-	Description string `json:"description,omitempty"`
-
-	// The name of the function
-	Name string `json:"name,omitempty"`
-
-	// The type returned by this function
-	ReturnType *TypeDefInput `json:"returnType,omitempty"`
-}
-
-type ListTypeDefInput struct {
-	// The type of the elements in the list
-	ElementTypeDef *TypeDefInput `json:"elementTypeDef,omitempty"`
 }
 
 type ModuleEnvironmentVariable struct {
 	Name string `json:"name,omitempty"`
 
 	Value string `json:"value,omitempty"`
-}
-
-// A definition of a custom object defined in a Module.
-type ObjectTypeDefInput struct {
-	// The doc string for the object, if any
-	Description string `json:"description,omitempty"`
-
-	// Static fields defined on this object, if any
-	Fields []*FieldTypeDefInput `json:"fields,omitempty"`
-
-	// Functions defined on this object, if any
-	Functions []*FunctionDef `json:"functions,omitempty"`
-
-	// The name of the object
-	Name string `json:"name,omitempty"`
 }
 
 // Key value object that represents a Pipeline label.
@@ -139,23 +99,6 @@ type PipelineLabel struct {
 
 	// Label value.
 	Value string `json:"value,omitempty"`
-}
-
-// A definition of a type used in a Module as an argument, return type or object field.
-type TypeDefInput struct {
-	// If kind is LIST, the list-specific type definition.
-	// If kind is not LIST, this will be null."
-	AsList *ListTypeDefInput `json:"asList,omitempty"`
-
-	// If kind is OBJECT, the object-specific type definition.
-	// If kind is not OBJECT, this will be null."
-	AsObject *ObjectTypeDefInput `json:"asObject,omitempty"`
-
-	// The kind of type this is (e.g. primitive, list, object)
-	Kind TypeDefKind `json:"kind,omitempty"`
-
-	// Whether this type can be set to null
-	Optional bool `json:"optional,omitempty"`
 }
 
 // A directory whose contents persist across runs.
@@ -265,6 +208,7 @@ type ContainerBuildOpts struct {
 
 // Initializes this container from a Dockerfile build.
 func (r *Container) Build(context *Directory, opts ...ContainerBuildOpts) *Container {
+	assertNotNil("context", context)
 	q := r.q.Select("build")
 	for i := len(opts) - 1; i >= 0; i-- {
 		// `dockerfile` optional argument
@@ -611,6 +555,7 @@ type ContainerImportOpts struct {
 // NOTE: this involves unpacking the tarball to an OCI store on the host at
 // $XDG_CACHE_DIR/dagger/oci. This directory can be removed whenever you like.
 func (r *Container) Import(source *File, opts ...ContainerImportOpts) *Container {
+	assertNotNil("source", source)
 	q := r.q.Select("import")
 	for i := len(opts) - 1; i >= 0; i-- {
 		// `tag` optional argument
@@ -872,6 +817,7 @@ type ContainerWithDirectoryOpts struct {
 
 // Retrieves this container plus a directory written at the given path.
 func (r *Container) WithDirectory(path string, directory *Directory, opts ...ContainerWithDirectoryOpts) *Container {
+	assertNotNil("directory", directory)
 	q := r.q.Select("withDirectory")
 	for i := len(opts) - 1; i >= 0; i-- {
 		// `exclude` optional argument
@@ -1042,6 +988,7 @@ type ContainerWithFileOpts struct {
 
 // Retrieves this container plus the contents of the given file copied to the given path.
 func (r *Container) WithFile(path string, source *File, opts ...ContainerWithFileOpts) *Container {
+	assertNotNil("source", source)
 	q := r.q.Select("withFile")
 	for i := len(opts) - 1; i >= 0; i-- {
 		// `permissions` optional argument
@@ -1105,6 +1052,7 @@ type ContainerWithMountedCacheOpts struct {
 
 // Retrieves this container plus a cache volume mounted at the given path.
 func (r *Container) WithMountedCache(path string, cache *CacheVolume, opts ...ContainerWithMountedCacheOpts) *Container {
+	assertNotNil("cache", cache)
 	q := r.q.Select("withMountedCache")
 	for i := len(opts) - 1; i >= 0; i-- {
 		// `source` optional argument
@@ -1141,6 +1089,7 @@ type ContainerWithMountedDirectoryOpts struct {
 
 // Retrieves this container plus a directory mounted at the given path.
 func (r *Container) WithMountedDirectory(path string, source *Directory, opts ...ContainerWithMountedDirectoryOpts) *Container {
+	assertNotNil("source", source)
 	q := r.q.Select("withMountedDirectory")
 	for i := len(opts) - 1; i >= 0; i-- {
 		// `owner` optional argument
@@ -1169,6 +1118,7 @@ type ContainerWithMountedFileOpts struct {
 
 // Retrieves this container plus a file mounted at the given path.
 func (r *Container) WithMountedFile(path string, source *File, opts ...ContainerWithMountedFileOpts) *Container {
+	assertNotNil("source", source)
 	q := r.q.Select("withMountedFile")
 	for i := len(opts) - 1; i >= 0; i-- {
 		// `owner` optional argument
@@ -1202,6 +1152,7 @@ type ContainerWithMountedSecretOpts struct {
 
 // Retrieves this container plus a secret mounted into a file at the given path.
 func (r *Container) WithMountedSecret(path string, source *Secret, opts ...ContainerWithMountedSecretOpts) *Container {
+	assertNotNil("source", source)
 	q := r.q.Select("withMountedSecret")
 	for i := len(opts) - 1; i >= 0; i-- {
 		// `owner` optional argument
@@ -1276,6 +1227,7 @@ func (r *Container) WithNewFile(path string, opts ...ContainerWithNewFileOpts) *
 
 // Retrieves this container with a registry authentication for a given address.
 func (r *Container) WithRegistryAuth(address string, username string, secret *Secret) *Container {
+	assertNotNil("secret", secret)
 	q := r.q.Select("withRegistryAuth")
 	q = q.Arg("address", address)
 	q = q.Arg("username", username)
@@ -1289,6 +1241,7 @@ func (r *Container) WithRegistryAuth(address string, username string, secret *Se
 
 // Initializes this container from this DirectoryID.
 func (r *Container) WithRootfs(directory *Directory) *Container {
+	assertNotNil("directory", directory)
 	q := r.q.Select("withRootfs")
 	q = q.Arg("directory", directory)
 
@@ -1300,6 +1253,7 @@ func (r *Container) WithRootfs(directory *Directory) *Container {
 
 // Retrieves this container plus an env variable containing the given secret.
 func (r *Container) WithSecretVariable(name string, secret *Secret) *Container {
+	assertNotNil("secret", secret)
 	q := r.q.Select("withSecretVariable")
 	q = q.Arg("name", name)
 	q = q.Arg("secret", secret)
@@ -1321,6 +1275,7 @@ func (r *Container) WithSecretVariable(name string, secret *Secret) *Container {
 //
 // Currently experimental; set _EXPERIMENTAL_DAGGER_SERVICES_DNS=0 to disable.
 func (r *Container) WithServiceBinding(alias string, service *Container) *Container {
+	assertNotNil("service", service)
 	q := r.q.Select("withServiceBinding")
 	q = q.Arg("alias", alias)
 	q = q.Arg("service", service)
@@ -1343,6 +1298,7 @@ type ContainerWithUnixSocketOpts struct {
 
 // Retrieves this container plus a socket forwarded to the given Unix socket path.
 func (r *Container) WithUnixSocket(path string, source *Socket, opts ...ContainerWithUnixSocketOpts) *Container {
+	assertNotNil("source", source)
 	q := r.q.Select("withUnixSocket")
 	for i := len(opts) - 1; i >= 0; i-- {
 		// `owner` optional argument
@@ -1507,25 +1463,35 @@ func (r *Directory) With(f WithDirectoryFunc) *Directory {
 
 // DirectoryAsModuleOpts contains options for Directory.AsModule
 type DirectoryAsModuleOpts struct {
+	// An optional subpath of the directory which contains the module's source
+	// code.
+	//
+	// This is needed when the module code is in a subdirectory but requires
+	// parent directories to be loaded in order to execute. For example, the
+	// module source code may need a go.mod, project.toml, package.json, etc. file
+	// from a parent directory.
+	//
+	// If not set, the module source code is loaded from the root of the
+	// directory.
 	SourceSubpath string
+	// A pre-built runtime container to use instead of building one from the
+	// source code. This is useful for bootstrapping.
+	//
+	// You should ignore this unless you're building a Dagger SDK.
+	Runtime *Container
 }
 
 // Load the directory as a Dagger module
-//
-// sourceSubpath is an optional parameter that, if set, points to a subpath of this
-// directory that contains the module's source code. This is needed when the module
-// code is in a subdirectory but requires parent directories to be loaded in order
-// to execute. For example, the module source code may need a go.mod, project.toml,
-// package.json, etc. file from a parent directory.
-//
-// If sourceSubpath is not set, the module source code is loaded from the root of
-// the directory.
 func (r *Directory) AsModule(opts ...DirectoryAsModuleOpts) *Module {
 	q := r.q.Select("asModule")
 	for i := len(opts) - 1; i >= 0; i-- {
 		// `sourceSubpath` optional argument
 		if !querybuilder.IsZeroValue(opts[i].SourceSubpath) {
 			q = q.Arg("sourceSubpath", opts[i].SourceSubpath)
+		}
+		// `runtime` optional argument
+		if !querybuilder.IsZeroValue(opts[i].Runtime) {
+			q = q.Arg("runtime", opts[i].Runtime)
 		}
 	}
 
@@ -1537,6 +1503,7 @@ func (r *Directory) AsModule(opts ...DirectoryAsModuleOpts) *Module {
 
 // Gets the difference between this directory and an another directory.
 func (r *Directory) Diff(other *Directory) *Directory {
+	assertNotNil("other", other)
 	q := r.q.Select("diff")
 	q = q.Arg("other", other)
 
@@ -1753,6 +1720,7 @@ type DirectoryWithDirectoryOpts struct {
 
 // Retrieves this directory plus a directory written at the given path.
 func (r *Directory) WithDirectory(path string, directory *Directory, opts ...DirectoryWithDirectoryOpts) *Directory {
+	assertNotNil("directory", directory)
 	q := r.q.Select("withDirectory")
 	for i := len(opts) - 1; i >= 0; i-- {
 		// `exclude` optional argument
@@ -1783,6 +1751,7 @@ type DirectoryWithFileOpts struct {
 
 // Retrieves this directory plus the contents of the given file copied to the given path.
 func (r *Directory) WithFile(path string, source *File, opts ...DirectoryWithFileOpts) *Directory {
+	assertNotNil("source", source)
 	q := r.q.Select("withFile")
 	for i := len(opts) - 1; i >= 0; i-- {
 		// `permissions` optional argument
@@ -2107,6 +2076,10 @@ func (r *File) WithTimestamps(timestamp int) *File {
 	}
 }
 
+// Function represents a resolver provided by a Module.
+//
+// A function always evaluates against a parent object and is given a set of
+// named arguments.
 type Function struct {
 	q *querybuilder.Selection
 	c graphql.Client
@@ -2115,6 +2088,14 @@ type Function struct {
 	description *string
 	id          *FunctionID
 	name        *string
+}
+type WithFunctionFunc func(r *Function) *Function
+
+// With calls the provided function with current Function.
+//
+// This is useful for reusability and readability by not breaking the calling chain.
+func (r *Function) With(f WithFunctionFunc) *Function {
+	return f(r)
 }
 
 // Arguments accepted by this function, if any
@@ -2193,6 +2174,7 @@ func (r *Function) Description(ctx context.Context) (string, error) {
 	return response, q.Execute(ctx, r.c)
 }
 
+// The ID of the function
 func (r *Function) ID(ctx context.Context) (FunctionID, error) {
 	if r.id != nil {
 		return *r.id, nil
@@ -2266,6 +2248,52 @@ func (r *Function) ReturnType() *TypeDef {
 	}
 }
 
+// FunctionWithArgOpts contains options for Function.WithArg
+type FunctionWithArgOpts struct {
+	// A doc string for the argument, if any
+	Description string
+	// A default value to use for this argument if not explicitly set by the caller, if any
+	DefaultValue JSON
+}
+
+// Returns the function with the provided argument
+func (r *Function) WithArg(name string, typeDef *TypeDef, opts ...FunctionWithArgOpts) *Function {
+	assertNotNil("typeDef", typeDef)
+	q := r.q.Select("withArg")
+	for i := len(opts) - 1; i >= 0; i-- {
+		// `description` optional argument
+		if !querybuilder.IsZeroValue(opts[i].Description) {
+			q = q.Arg("description", opts[i].Description)
+		}
+		// `defaultValue` optional argument
+		if !querybuilder.IsZeroValue(opts[i].DefaultValue) {
+			q = q.Arg("defaultValue", opts[i].DefaultValue)
+		}
+	}
+	q = q.Arg("name", name)
+	q = q.Arg("typeDef", typeDef)
+
+	return &Function{
+		q: q,
+		c: r.c,
+	}
+}
+
+// Returns the function with the doc string
+func (r *Function) WithDescription(description string) *Function {
+	q := r.q.Select("withDescription")
+	q = q.Arg("description", description)
+
+	return &Function{
+		q: q,
+		c: r.c,
+	}
+}
+
+// An argument accepted by a function.
+//
+// This is a specification for an argument at function definition time, not an
+// argument passed at function call time.
 type FunctionArg struct {
 	q *querybuilder.Selection
 	c graphql.Client
@@ -2633,6 +2661,7 @@ func (r *Label) Value(ctx context.Context) (string, error) {
 	return response, q.Execute(ctx, r.c)
 }
 
+// A definition of a list type in a Module.
 type ListTypeDef struct {
 	q *querybuilder.Selection
 	c graphql.Client
@@ -2656,6 +2685,7 @@ type Module struct {
 	id                     *ModuleID
 	name                   *string
 	sdk                    *string
+	sdkRuntime             *string
 	serve                  *Void
 	sourceDirectorySubPath *string
 }
@@ -2722,35 +2752,14 @@ func (r *Module) Description(ctx context.Context) (string, error) {
 	return response, q.Execute(ctx, r.c)
 }
 
-// Functions served by this module
-func (r *Module) Functions(ctx context.Context) ([]Function, error) {
-	q := r.q.Select("functions")
+// The code generated by the SDK's runtime
+func (r *Module) GeneratedCode() *Directory {
+	q := r.q.Select("generatedCode")
 
-	q = q.Select("id")
-
-	type functions struct {
-		Id FunctionID
+	return &Directory{
+		q: q,
+		c: r.c,
 	}
-
-	convert := func(fields []functions) []Function {
-		out := []Function{}
-
-		for i := range fields {
-			out = append(out, Function{id: &fields[i].Id})
-		}
-
-		return out
-	}
-	var response []functions
-
-	q = q.Bind(&response)
-
-	err := q.Execute(ctx, r.c)
-	if err != nil {
-		return nil, err
-	}
-
-	return convert(response), nil
 }
 
 // The ID of the module
@@ -2819,12 +2828,56 @@ func (r *Module) Name(ctx context.Context) (string, error) {
 	return response, q.Execute(ctx, r.c)
 }
 
+// Objects served by this module
+func (r *Module) Objects(ctx context.Context) ([]TypeDef, error) {
+	q := r.q.Select("objects")
+
+	q = q.Select("id")
+
+	type objects struct {
+		Id TypeDefID
+	}
+
+	convert := func(fields []objects) []TypeDef {
+		out := []TypeDef{}
+
+		for i := range fields {
+			out = append(out, TypeDef{id: &fields[i].Id})
+		}
+
+		return out
+	}
+	var response []objects
+
+	q = q.Bind(&response)
+
+	err := q.Execute(ctx, r.c)
+	if err != nil {
+		return nil, err
+	}
+
+	return convert(response), nil
+}
+
 // The SDK used by this module
 func (r *Module) SDK(ctx context.Context) (string, error) {
 	if r.sdk != nil {
 		return *r.sdk, nil
 	}
 	q := r.q.Select("sdk")
+
+	var response string
+
+	q = q.Bind(&response)
+	return response, q.Execute(ctx, r.c)
+}
+
+// The SDK runtime module image ref.
+func (r *Module) SDKRuntime(ctx context.Context) (string, error) {
+	if r.sdkRuntime != nil {
+		return *r.sdkRuntime, nil
+	}
+	q := r.q.Select("sdkRuntime")
 
 	var response string
 
@@ -2882,10 +2935,11 @@ func (r *Module) SourceDirectorySubPath(ctx context.Context) (string, error) {
 	return response, q.Execute(ctx, r.c)
 }
 
-// This module plus the given Function associated with it
-func (r *Module) WithFunction(id *Function) *Module {
-	q := r.q.Select("withFunction")
-	q = q.Arg("id", id)
+// This module plus the given Object type and associated functions
+func (r *Module) WithObject(object *TypeDef) *Module {
+	assertNotNil("object", object)
+	q := r.q.Select("withObject")
+	q = q.Arg("object", object)
 
 	return &Module{
 		q: q,
@@ -3261,9 +3315,11 @@ func (r *Client) Module(opts ...ModuleOpts) *Module {
 }
 
 // Create a new function from the provided definition.
-func (r *Client) NewFunction(def *FunctionDef) *Function {
+func (r *Client) NewFunction(name string, returnType *TypeDef) *Function {
+	assertNotNil("returnType", returnType)
 	q := r.q.Select("newFunction")
-	q = q.Arg("def", def)
+	q = q.Arg("name", name)
+	q = q.Arg("returnType", returnType)
 
 	return &Function{
 		q: q,
@@ -3340,6 +3396,26 @@ func (r *Client) Socket(opts ...SocketOpts) *Socket {
 	}
 
 	return &Socket{
+		q: q,
+		c: r.c,
+	}
+}
+
+// TypeDefOpts contains options for Client.TypeDef
+type TypeDefOpts struct {
+	ID TypeDefID
+}
+
+func (r *Client) TypeDef(opts ...TypeDefOpts) *TypeDef {
+	q := r.q.Select("typeDef")
+	for i := len(opts) - 1; i >= 0; i-- {
+		// `id` optional argument
+		if !querybuilder.IsZeroValue(opts[i].ID) {
+			q = q.Arg("id", opts[i].ID)
+		}
+	}
+
+	return &TypeDef{
 		q: q,
 		c: r.c,
 	}
@@ -3483,8 +3559,17 @@ type TypeDef struct {
 	q *querybuilder.Selection
 	c graphql.Client
 
+	id       *TypeDefID
 	kind     *TypeDefKind
 	optional *bool
+}
+type WithTypeDefFunc func(r *TypeDef) *TypeDef
+
+// With calls the provided function with current TypeDef.
+//
+// This is useful for reusability and readability by not breaking the calling chain.
+func (r *TypeDef) With(f WithTypeDefFunc) *TypeDef {
+	return f(r)
 }
 
 // If kind is LIST, the list-specific type definition.
@@ -3507,6 +3592,54 @@ func (r *TypeDef) AsObject() *ObjectTypeDef {
 		q: q,
 		c: r.c,
 	}
+}
+
+func (r *TypeDef) ID(ctx context.Context) (TypeDefID, error) {
+	if r.id != nil {
+		return *r.id, nil
+	}
+	q := r.q.Select("id")
+
+	var response TypeDefID
+
+	q = q.Bind(&response)
+	return response, q.Execute(ctx, r.c)
+}
+
+// XXX_GraphQLType is an internal function. It returns the native GraphQL type name
+func (r *TypeDef) XXX_GraphQLType() string {
+	return "TypeDef"
+}
+
+// XXX_GraphQLIDType is an internal function. It returns the native GraphQL type name for the ID of this object
+func (r *TypeDef) XXX_GraphQLIDType() string {
+	return "TypeDefID"
+}
+
+// XXX_GraphQLID is an internal function. It returns the underlying type ID
+func (r *TypeDef) XXX_GraphQLID(ctx context.Context) (string, error) {
+	id, err := r.ID(ctx)
+	if err != nil {
+		return "", err
+	}
+	return string(id), nil
+}
+
+func (r *TypeDef) MarshalJSON() ([]byte, error) {
+	id, err := r.ID(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(id)
+}
+func (r *TypeDef) UnmarshalJSON(bs []byte) error {
+	var id string
+	err := json.Unmarshal(bs, &id)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // The kind of type this is (e.g. primitive, list, object)
@@ -3533,6 +3666,103 @@ func (r *TypeDef) Optional(ctx context.Context) (bool, error) {
 
 	q = q.Bind(&response)
 	return response, q.Execute(ctx, r.c)
+}
+
+// TypeDefWithFieldOpts contains options for TypeDef.WithField
+type TypeDefWithFieldOpts struct {
+	// A doc string for the field, if any
+	Description string
+}
+
+// Adds a static field for an Object TypeDef, failing if the type is not an object.
+func (r *TypeDef) WithField(name string, typeDef *TypeDef, opts ...TypeDefWithFieldOpts) *TypeDef {
+	assertNotNil("typeDef", typeDef)
+	q := r.q.Select("withField")
+	for i := len(opts) - 1; i >= 0; i-- {
+		// `description` optional argument
+		if !querybuilder.IsZeroValue(opts[i].Description) {
+			q = q.Arg("description", opts[i].Description)
+		}
+	}
+	q = q.Arg("name", name)
+	q = q.Arg("typeDef", typeDef)
+
+	return &TypeDef{
+		q: q,
+		c: r.c,
+	}
+}
+
+// Adds a function for an Object TypeDef, failing if the type is not an object.
+func (r *TypeDef) WithFunction(function *Function) *TypeDef {
+	assertNotNil("function", function)
+	q := r.q.Select("withFunction")
+	q = q.Arg("function", function)
+
+	return &TypeDef{
+		q: q,
+		c: r.c,
+	}
+}
+
+// Sets the kind of the type.
+func (r *TypeDef) WithKind(kind TypeDefKind) *TypeDef {
+	q := r.q.Select("withKind")
+	q = q.Arg("kind", kind)
+
+	return &TypeDef{
+		q: q,
+		c: r.c,
+	}
+}
+
+// Returns a TypeDef of kind List with the provided type for its elements.
+func (r *TypeDef) WithListOf(elementType *TypeDef) *TypeDef {
+	assertNotNil("elementType", elementType)
+	q := r.q.Select("withListOf")
+	q = q.Arg("elementType", elementType)
+
+	return &TypeDef{
+		q: q,
+		c: r.c,
+	}
+}
+
+// TypeDefWithObjectOpts contains options for TypeDef.WithObject
+type TypeDefWithObjectOpts struct {
+	Description string
+}
+
+// Returns a TypeDef of kind Object with the provided name.
+//
+// Note that an object's fields and functions may be omitted if the intent is
+// only to refer to an object. This is how functions are able to return their
+// own object, or any other circular reference.
+func (r *TypeDef) WithObject(name string, opts ...TypeDefWithObjectOpts) *TypeDef {
+	q := r.q.Select("withObject")
+	for i := len(opts) - 1; i >= 0; i-- {
+		// `description` optional argument
+		if !querybuilder.IsZeroValue(opts[i].Description) {
+			q = q.Arg("description", opts[i].Description)
+		}
+	}
+	q = q.Arg("name", name)
+
+	return &TypeDef{
+		q: q,
+		c: r.c,
+	}
+}
+
+// Sets whether this type can be set to null.
+func (r *TypeDef) WithOptional(optional bool) *TypeDef {
+	q := r.q.Select("withOptional")
+	q = q.Arg("optional", optional)
+
+	return &TypeDef{
+		q: q,
+		c: r.c,
+	}
 }
 
 type CacheSharingMode string
@@ -3574,6 +3804,7 @@ const (
 	Listkind    TypeDefKind = "ListKind"
 	Objectkind  TypeDefKind = "ObjectKind"
 	Stringkind  TypeDefKind = "StringKind"
+	Voidkind    TypeDefKind = "VoidKind"
 )
 
 type Client struct {
@@ -3707,28 +3938,18 @@ func invoke(ctx context.Context, parentJSON []byte, parentName string, fnName st
 				os.Exit(2)
 			}
 			return (*Nix).Pkgs(&parent, ctx, packages)
-		case "":
-			var err error
-			var typeDefBytes []byte = []byte("{\"asObject\":{\"functions\":[{\"args\":[{\"name\":\"packages\",\"typeDef\":{\"asList\":{\"elementTypeDef\":{\"kind\":\"StringKind\"}},\"kind\":\"ListKind\"}}],\"description\":\"Pkgs returns a container with the specified packages installed from nixpkgs.\\n\",\"name\":\"Pkgs\",\"returnType\":{\"asObject\":{\"name\":\"Container\"},\"kind\":\"ObjectKind\"}}],\"name\":\"Nix\"},\"kind\":\"ObjectKind\"}")
-			var typeDef TypeDefInput
-			err = json.Unmarshal(typeDefBytes, &typeDef)
-			if err != nil {
-				fmt.Println(err.Error())
-				os.Exit(2)
-			}
-			mod := dag.CurrentModule()
-			for _, fnDef := range typeDef.AsObject.Functions {
-				mod = mod.WithFunction(dag.NewFunction(fnDef))
-			}
-			return mod, nil
 		default:
 			return nil, fmt.Errorf("unknown function %s", fnName)
 		}
-	case "Container":
-		switch fnName {
-		default:
-			return nil, fmt.Errorf("unknown function %s", fnName)
-		}
+	case "":
+		return dag.CurrentModule().
+			WithObject(
+				dag.TypeDef().WithObject("Nix").
+					WithFunction(
+						dag.NewFunction("Pkgs",
+							dag.TypeDef().WithObject("Container")).
+							WithDescription("Pkgs returns a container with the specified packages installed from nixpkgs.\n").
+							WithArg("packages", dag.TypeDef().WithListOf(dag.TypeDef().WithKind(Stringkind))))), nil
 	default:
 		return nil, fmt.Errorf("unknown object %s", parentName)
 	}
