@@ -1,27 +1,51 @@
-Assumptions:
+## Assumptions
 - Docker is running locally
-- OS is macOS or Linux
+- OS is macOS
 
 > **Note**
 > Tested on macOS `12.7` running Docker Engine `24.0.6`
 
-Step-by-step instructions:
-1. In the parent direction, run:
+## How to use this module?
+
+1. From this dir, build a compatible Dagger CLI & Engine:
 ```sh
+cd ../
 git submodule init && git submodule update
-```
-2. Build a Dagger CLI & Engine:
-```sh
 cd dagger && ./hack/dev
 ```
-3. Ensure that you are in this module's directory & using the correct Dagger CLI & Engine:
+2. Check that you are using the correct Dagger CLI & Engine:
 ```sh
 cd ../concourse && direnv allow
 dagger version
 dagger serve
 ```
-4. Run this module:
+3. Run this module:
 ```sh
 dagger serve concourse.quickstart
 ```
-5. Concourse Web UI is now available via <http://localhost:8080> 
+
+Concourse Web UI is now available via <http://localhost:8080> 
+
+![Concourse in Dagger](concourse.png)
+
+## How to configure a Concourse pipeline?
+
+1. Download flyctl from <http://localhost:8080/api/v1/cli?arch=amd64&platform=darwin> (bottom right corner)
+2. Add the `concourse.yml` pipeline from this directory (requires DockerHub credentials)
+```sh
+fly login -t dagger -c http://localhost:8080 -u dagger -p dagger
+
+export DOCKER_USERNAME=user
+export DOCKER_PASSWORD=pass
+fly set-pipeline -c concourse.yml -p concourse -t dagger \
+    --var "docker.username=$DOCKER_USERNAME" \
+    --var "docker.password=$DOCKER_PASSWORD"
+
+fly unpause-pipeline -p concourse -t dagger
+```
+3. View this pipeline in the UI <http://localhost:8080/teams/main/pipelines/concourse>
+    - Requires login with username `dagger` & password `dagger` <http://localhost:8080/sky/login>
+
+This is what the end-result will look like:
+
+![Concourse pipeline running in Concourse in Dagger](concourse-pipeline.png)
