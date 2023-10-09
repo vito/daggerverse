@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 )
 
@@ -33,7 +34,7 @@ func (m *Concourse) Quickstart(ctx context.Context, opts CreateOpts) *Service {
 		WithEnvVariable("CONCOURSE_BAGGAGECLAIM_DRIVER", "overlay").
 		WithEnvVariable("CONCOURSE_ENABLE_PIPELINE_INSTANCES", "true").
 		WithEnvVariable("CONCOURSE_ENABLE_ACROSS_STEP", "true").
-		WithEnvVariable("CONCOURSE_EXTERNAL_URL", "http://100.81.87.121:8081").
+		WithEnvVariable("CONCOURSE_EXTERNAL_URL", fmt.Sprintf("https://localhost:%s", strconv.Itoa(opts.webPort))).
 		WithEntrypoint(nil).
 		WithExec([]string{"/usr/local/bin/entrypoint.sh", "quickstart"}, ContainerWithExecOpts{
 			InsecureRootCapabilities: true,
