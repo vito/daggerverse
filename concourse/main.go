@@ -30,8 +30,8 @@ func (m *Concourse) Quickstart(ctx context.Context, opts CreateOpts) *Service {
 		WithEnvVariable("CONCOURSE_ADD_LOCAL_USER", "modules:modules").
 		WithEnvVariable("CONCOURSE_MAIN_TEAM_LOCAL_USER", "modules").
 		WithEnvVariable("CONCOURSE_CLUSTER_NAME", "modules").
-		WithEnvVariable("CONCOURSE_WORKER_RUNTIME", "containerd").
-		WithEnvVariable("CONCOURSE_BAGGAGECLAIM_DRIVER", "overlay").
+		WithEnvVariable("CONCOURSE_WORKER_RUNTIME", "houdini").
+		WithEnvVariable("CONCOURSE_WORKER_BAGGAGECLAIM_DRIVER", "overlay").
 		WithEnvVariable("CONCOURSE_ENABLE_PIPELINE_INSTANCES", "true").
 		WithEnvVariable("CONCOURSE_ENABLE_ACROSS_STEP", "true").
 		WithEnvVariable("CONCOURSE_EXTERNAL_URL", fmt.Sprintf("https://localhost:%s", strconv.Itoa(opts.webPort))).

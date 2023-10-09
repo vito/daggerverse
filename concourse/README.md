@@ -1,9 +1,9 @@
 Assumptions:
 - Docker is running locally
-- OS is Linux (iptables issues on macOS)
+- OS is macOS or Linux
 
 > **Note**
-> Tested on Debian `v12.1` running Docker Engine `24.0.6`
+> Tested on macOS `12.7` running Docker Engine `24.0.6`
 
 Step-by-step instructions:
 1. In the parent direction, run:
@@ -24,16 +24,4 @@ dagger serve
 ```sh
 dagger serve concourse.quickstart
 ```
-
-💥 When running on macOS 12.7
-```
-...
-containerd-garden-backend exited with error:
-    setup host network failed:
-        create chain or flush if exists failed:
-            running [/usr/sbin/iptables -t filter -N CONCOURSE-OPERATOR --wait]: exit status 3:
-                iptables v1.8.7 (legacy): can't initialize iptables table `filter':
-                    iptables who? (do you need to insmod?)
-
-Perhaps iptables or your kernel needs to be upgraded.
-```
+5. Concourse Web UI is now available via <http://localhost:8080> 
