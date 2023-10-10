@@ -30,7 +30,7 @@ Concourse Web UI is now available via <http://localhost:8080>
 
 ## How to configure a Concourse pipeline?
 
-1. Download flyctl from <http://localhost:8080/api/v1/cli?arch=amd64&platform=darwin> (bottom right corner)
+1. Download `fly` from <http://localhost:8080/api/v1/cli?arch=amd64&platform=darwin> (bottom right corner)
 2. Add the `concourse.yml` pipeline from this directory (requires DockerHub credentials)
 ```sh
 fly login -t dagger -c http://localhost:8080 -u dagger -p dagger
