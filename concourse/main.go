@@ -38,7 +38,7 @@ func (m *Concourse) Quickstart(ctx context.Context, opts QuickstartOpts) *Servic
 		WithEnvVariable("CONCOURSE_WORKER_BAGGAGECLAIM_DRIVER", "overlay").
 		WithEnvVariable("CONCOURSE_ENABLE_PIPELINE_INSTANCES", "true").
 		WithEnvVariable("CONCOURSE_ENABLE_ACROSS_STEP", "true").
-		WithEnvVariable("CONCOURSE_EXTERNAL_URL", fmt.Sprintf("https://localhost:%s", strconv.Itoa(opts.WebPort))).
+		WithEnvVariable("CONCOURSE_EXTERNAL_URL", fmt.Sprintf("https://localhost:%d", opts.WebPort)).
 		WithEntrypoint(nil).
 		WithExec([]string{"/usr/local/bin/entrypoint.sh", "quickstart"}, ContainerWithExecOpts{
 			InsecureRootCapabilities: true,
