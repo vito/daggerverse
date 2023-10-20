@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	_ "embed"
+	"fmt"
 	"html/template"
 	"strings"
 )
@@ -15,10 +16,10 @@ type PkgsOpts struct {
 type Nix struct{}
 
 // Pkgs returns a container with the specified packages installed from nixpkgs.
-func (m *Nix) Pkgs(ctx context.Context, packages []string) (*Container, error) {
+func (m *Nix) Pkgs(ctx context.Context, packages []string, opts PkgsOpts) (*Container, error) {
 	imageRef := "nixpkgs/" + strings.Join(packages, "/")
 
-	ref := "" //opts.NixpkgsRef
+	ref := opts.NixpkgsRef
 	if ref == "" {
 		// NB: strong opinion, loosely held: default to unstable,
 		// which is more likely what I want for simple hacking.
@@ -42,24 +43,27 @@ func (m *Nix) Pkgs(ctx context.Context, packages []string) (*Container, error) {
 	), nil
 }
 
-// // PkgsTest runs a sanity check to ensure the module works as expected.
-// func (m *Nix) PkgsTest(ctx context.Context) error {
-// 	pkgs := m.Pkgs([]string{"go_1_20"}, PkgsOpts{
-// 		NixpkgsRef: "23.05",
-// 	})
+// PkgsTest runs a sanity check to ensure the module works as expected.
+func (m *Nix) PkgsTest(ctx context.Context) error {
+	pkgs, err := m.Pkgs(ctx, []string{"go_1_20"}, PkgsOpts{
+		NixpkgsRef: "23.05",
+	})
+	if err != nil {
+		return err
+	}
 
-// 	out, err := pkgs.WithExec([]string{"go", "version"}).Stdout(ctx)
-// 	if err != nil {
-// 		return err
-// 	}
+	out, err := pkgs.WithExec([]string{"go", "version"}).Stdout(ctx)
+	if err != nil {
+		return err
+	}
 
-// 	const expectedVersion = "1.20.4" // 23.05 version
-// 	if !strings.Contains(out, "go version go"+expectedVersion) {
-// 		return fmt.Errorf("expected go version %s, got %s", expectedVersion, out)
-// 	}
+	const expectedVersion = "1.20.4" // 23.05 version
+	if !strings.Contains(out, "go version go"+expectedVersion) {
+		return fmt.Errorf("expected go version %s, got %s", expectedVersion, out)
+	}
 
-// 	return nil
-// }
+	return nil
+}
 
 func nixBase() *Container {
 	base := dag.Container().From("nixos/nix")
