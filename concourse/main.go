@@ -16,17 +16,6 @@ type QuickstartOpts struct {
 }
 
 func (m *Concourse) Quickstart(ctx context.Context, opts QuickstartOpts) *Service {
-	// TODO: workaround dagger up CLI not respecting defaults
-	if opts.Image == "" {
-		opts.Image = "concourse/concourse:7.10@sha256:e45dffda72e32e11e5790530f8b41a23af4a49a21d585967c4f00c3cf3b12164"
-	}
-	if opts.DBImage == "" {
-		opts.DBImage = "postgres:15.4-alpine@sha256:6f5520d31e1223facb11066b6c99333ffabf190a5d48c50d615b858602f5f8b5"
-	}
-	if opts.WebPort == 0 {
-		opts.WebPort = 8080
-	}
-
 	workerWorkDir := dag.CacheVolume("concourse-worker-work-dir")
 
 	return dag.Container().From(opts.Image).
