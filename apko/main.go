@@ -11,13 +11,16 @@ type Apko struct{}
 
 // Alpine returns a Container with the specified packages installed from Alpine
 // repositories.
-func (Apko) Alpine(packages []string) (*Container, error) {
+func (Apko) Alpine(args struct {
+	Packages []string `doc:"List of package names to install." required:"true"`
+	Branch   string   `doc:"Alpine branch to use." default:"edge"`
+}) (*Container, error) {
 	ic := baseConfig()
 	ic["contents"] = cfg{
 		"repositories": []string{
-			"https://dl-cdn.alpinelinux.org/alpine/edge/main",
+			"https://dl-cdn.alpinelinux.org/alpine/" + args.Branch + "/main",
 		},
-		"packages": append([]string{"alpine-base"}, packages...),
+		"packages": append([]string{"alpine-base"}, args.Packages...),
 	}
 	return apko(ic)
 }
