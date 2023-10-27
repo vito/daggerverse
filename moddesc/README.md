@@ -1,1 +1,1 @@
-Hey, we should probably generate a README.
+Testing module descriptions. (They don't seem to show up anywhere.)
