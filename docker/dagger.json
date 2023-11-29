@@ -1,0 +1,8 @@
+{
+  "name": "docker",
+  "root": "..",
+  "sdk": "go",
+  "dependencies": [
+    "github.com/vito/kpenfound-dagger-modules/proxy@f0f6266b4ec78892e52f7c606f16dea742cf3b51"
+  ]
+}
