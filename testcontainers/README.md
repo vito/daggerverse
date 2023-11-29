@@ -6,8 +6,5 @@ require any code changes.
 ### Demos
 
 ```sh
-dagger up compose --dir https://github.com/vito/daggerverse/test --file wordpress.yml all --native
-
-# or:
-dagger -m ../test up wordpress --native
+dagger -m github.com/vito/daggerverse/test call testcontainers
 ```

@@ -11,5 +11,5 @@ A module for all things Docker.
 dagger up compose --dir https://github.com/vito/daggerverse/test --file wordpress.yml all --native
 
 # or:
-dagger -m ../test up wordpress --native
+dagger -m github.com/vito/daggerverse/test up wordpress --native
 ```
