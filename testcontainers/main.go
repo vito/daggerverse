@@ -19,7 +19,7 @@ func (m *Testcontainers) DockerService() *Service {
 	if m.Docker != nil {
 		return m.Docker
 	} else {
-		return defaultDind()
+		return dag.Docker().Daemon().Service()
 	}
 }
 
@@ -30,19 +30,4 @@ func (m *Testcontainers) Setup(ctr *Container) *Container {
 		WithServiceBinding("docker", m.DockerService()).
 		WithEnvVariable("DOCKER_HOST", "tcp://docker:2375").
 		WithEnvVariable("TESTCONTAINERS_RYUK_DISABLED", "true")
-}
-
-func defaultDind() *Service {
-	return dag.Container().From("docker:dind").
-		WithFocus().
-		WithEnvVariable("TINI_SUBREAPER", "").
-		WithExec([]string{
-			"dockerd",                   // this appears to be load-bearing
-			"--tls=false",               // set a flag explicitly to disable TLS
-			"--host=tcp://0.0.0.0:2375", // listen on all interfaces
-		}, ContainerWithExecOpts{
-			InsecureRootCapabilities: true,
-		}).
-		WithExposedPort(2375).
-		AsService()
 }

@@ -1,5 +1,8 @@
 {
   "name": "testcontainers",
+  "root": "..",
   "sdk": "go",
-  "dependencies": []
+  "dependencies": [
+    "../docker"
+  ]
 }
