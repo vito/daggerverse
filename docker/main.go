@@ -6,9 +6,9 @@ func (m *Docker) Daemon() *Daemon {
 	return &Daemon{}
 }
 
-func (m *Docker) Compose(dir *Directory, file Optional[[]string]) *Compose {
+func (m *Docker) Compose(dir *Directory, files Optional[[]string]) *Compose {
 	return &Compose{
 		Dir:   dir,
-		Files: file.GetOr([]string{"docker-compose.yml"}),
+		Files: files.GetOr([]string{"docker-compose.yml"}),
 	}
 }
