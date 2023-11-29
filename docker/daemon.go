@@ -1,8 +1,12 @@
 package main
 
+// Compose is an API for using a Docker daemon.
 type Daemon struct {
+	// The version of Docker to use.
 	Version string
-	Cache   *CacheVolume
+
+	// An optional cache volume to mount at /var/lib/docker.
+	Cache *CacheVolume
 }
 
 // WithVersion allows you to specify a Docker version to use.

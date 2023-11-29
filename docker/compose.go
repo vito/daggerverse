@@ -12,17 +12,27 @@ import (
 	"github.com/compose-spec/compose-go/types"
 )
 
+// Compose is an API for using Docker Compose.
 type Compose struct {
-	Dir   *Directory
+	// The directory to use as the context for the Compose project.
+	Dir *Directory
+
+	// The Compose config files to use, within the directory.
 	Files []string
-	Env   []Env
+
+	// Environment variables to interpolate into the Compose config files.
+	Env []Env
 }
 
+// Env represents an environment variable to interpolate into the Compose config
+// files.
 type Env struct {
 	Name  string
 	Value string
 }
 
+// WithEnv sets an environment variable that may be interpolated into the
+// Compose config files.
 func (m *Compose) WithEnv(name, val string) *Compose {
 	m.Env = append(m.Env, Env{
 		Name:  name,
@@ -31,6 +41,7 @@ func (m *Compose) WithEnv(name, val string) *Compose {
 	return m
 }
 
+// All returns a proxy service that forwards traffic to all defined services.
 func (m *Compose) All(ctx context.Context) (*Service, error) {
 	env := make(types.Mapping)
 	for _, e := range m.Env {
@@ -73,7 +84,7 @@ func (m *Compose) All(ctx context.Context) (*Service, error) {
 	proxy := dag.Proxy()
 
 	for _, composeSvc := range project.Services {
-		svc, err := m.serviceContainer(project, composeSvc)
+		svc, err := m.convert(project, composeSvc)
 		if err != nil {
 			return nil, err
 		}
@@ -99,7 +110,7 @@ func (m *Compose) All(ctx context.Context) (*Service, error) {
 	return proxy.Service(), nil
 }
 
-func (m *Compose) serviceContainer(project *types.Project, svc types.ServiceConfig) (*Service, error) {
+func (m *Compose) convert(project *types.Project, svc types.ServiceConfig) (*Service, error) {
 	ctr := dag.Pipeline(svc.Name).Container()
 	if svc.Image != "" {
 		ctr = ctr.From(svc.Image)
@@ -183,7 +194,7 @@ func (m *Compose) serviceContainer(project *types.Project, svc types.ServiceConf
 			return nil, err
 		}
 
-		svc, err := m.serviceContainer(project, cfg)
+		svc, err := m.convert(project, cfg)
 		if err != nil {
 			return nil, err
 		}
