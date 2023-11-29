@@ -18,6 +18,13 @@ func (m *Main) Testcontainers(ctx context.Context) error {
 		Commit("504645849200304ea4257efee027e70276cf11c9").
 		Tree()
 
+	// Optional: start a Docker daemon that'll be kept around across all suites
+	// even if there is idle time due to load
+	_, err := dag.Testcontainers().DockerService().Start(ctx)
+	if err != nil {
+		return err
+	}
+
 	eg := new(errgroup.Group)
 	for _, suite := range []string{
 		"cockroachdb",
