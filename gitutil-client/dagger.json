@@ -1,9 +1,8 @@
 {
   "name": "gitutilClient",
   "sdk": "go",
-  "sdkRuntime": "vito/dagger-sdk-go:no-vcs-flag@sha256:0fcc9d2659cdd551acb7aaf25e77215e9687475eb89ec06cae989eaf332ee480",
   "dependencies": [
-    "github.com/kpenfound/dagger-modules/golang@4d1d4cfa57e10d94e82835db463f1ea1c85fd063",
+    "github.com/kpenfound/dagger-modules/golang@683e3a5859438a85fdc39462d6f6439fea30e804",
     "github.com/vito/dagger-gitutil@8fe8cd4de73a6fa4022fd90a9477d9500a683ff8"
   ]
 }
