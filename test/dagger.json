@@ -1,8 +1,10 @@
 {
   "name": "main",
+  "root": "..",
   "sdk": "go",
-  "sdkRuntime": "vito/dagger-sdk-go:multi@sha256:f0e8aba7fbb7efd0dbede9eb328eae6b27693c2aade7b184a9f18658124bb1a4",
   "dependencies": [
-    "apko"
+    "../apko",
+    "../testcontainers",
+    "github.com/quartz-technology/daggerverse/golang@8812a090cd9096df1e4c3d1d9402b36b091304cb"
   ]
 }
