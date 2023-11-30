@@ -112,6 +112,7 @@ func (m *Compose) All(ctx context.Context) (*Service, error) {
 
 func (m *Compose) convert(project *types.Project, svc types.ServiceConfig) (*Service, error) {
 	ctr := dag.Pipeline(svc.Name).Container()
+
 	if svc.Image != "" {
 		ctr = ctr.From(svc.Image)
 	} else if svc.Build != nil {
@@ -206,6 +207,9 @@ func (m *Compose) convert(project *types.Project, svc types.ServiceConfig) (*Ser
 	if svc.Privileged {
 		opts.InsecureRootCapabilities = true
 	}
+
+	// Show service containers by default.
+	ctr = ctr.WithFocus()
 
 	ctr = ctr.WithExec(svc.Command, opts)
 
