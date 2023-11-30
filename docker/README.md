@@ -5,9 +5,10 @@ A module for all things Docker.
 * [x] Docker in Docker
 * [x] Docker Compose
 
-### Demo
+### Demos
 
 ```sh
+# via CLI:
 dagger -m github.com/vito/daggerverse/docker \
     up --native \
     compose \
