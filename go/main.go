@@ -174,6 +174,12 @@ func (g *Go) Gotestsum(
 	// Whether to run tests with race detection.
 	// +optional
 	race bool,
+	// Whether to run tests insecurely, i.e. with special privileges.
+	// +optional
+	insecureRootCapabilities bool,
+	// Enable experimental Dagger nesting.
+	// +optional
+	nest bool,
 	// Arbitrary flags to pass along to go test.
 	// +optional
 	goTestFlags []string,
@@ -202,7 +208,10 @@ func (g *Go) Gotestsum(
 		With(g.GlobalCache).
 		WithMountedDirectory("/src", src).
 		WithWorkdir("/src").
-		WithExec(cmd)
+		WithExec(cmd, ContainerWithExecOpts{
+			InsecureRootCapabilities:      insecureRootCapabilities,
+			ExperimentalPrivilegedNesting: nest,
+		})
 }
 
 // Generate runs go generate ./... and returns the updated directory.
