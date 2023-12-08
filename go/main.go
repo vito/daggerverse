@@ -144,6 +144,8 @@ func (g *Go) Test(
 
 	goTest = append(goTest, testFlags...)
 
+	goTest = append(goTest, pkgs...)
+
 	return ctr.WithExec(goTest), nil
 }
 
