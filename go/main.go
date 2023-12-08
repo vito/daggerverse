@@ -13,26 +13,14 @@ type Go struct {
 }
 
 func New(
-	// +optional
-	base *Container,
-	// +optional
-	modCache *CacheVolume,
-	// +optional
-	buildCache *CacheVolume,
+	base Optional[*Container],
+	modCache Optional[*CacheVolume],
+	buildCache Optional[*CacheVolume],
 ) *Go {
-	if base == nil {
-		base = dag.Container().From("golang:1")
-	}
-	if modCache == nil {
-		modCache = dag.CacheVolume("go-mod")
-	}
-	if buildCache == nil {
-		buildCache = dag.CacheVolume("go-build")
-	}
 	return &Go{
-		Base:       base,
-		ModCache:   modCache,
-		BuildCache: buildCache,
+		Base:       base.GetOr(dag.Container().From("golang:1")),
+		ModCache:   modCache.GetOr(dag.CacheVolume("go-mod")),
+		BuildCache: buildCache.GetOr(dag.CacheVolume("go-build")),
 	}
 }
 
