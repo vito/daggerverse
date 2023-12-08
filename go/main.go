@@ -169,7 +169,7 @@ func (g *Go) Gotestsum(
 	packages []string,
 	// Gotestsum format to display.
 	// +optional
-	// +default="testname"
+	// +default=testname
 	format string,
 	// Whether to run tests with race detection.
 	// +optional
