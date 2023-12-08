@@ -121,6 +121,12 @@ func (g *Go) Test(
 	// Arbitrary flags to pass along to go test.
 	// +optional
 	testFlags []string,
+	// Whether to run tests insecurely, i.e. with special privileges.
+	// +optional
+	insecureRootCapabilities bool,
+	// Enable experimental Dagger nesting.
+	// +optional
+	nest bool,
 ) (*Container, error) {
 	ctr := g.Base.
 		With(g.GlobalCache).
@@ -146,7 +152,10 @@ func (g *Go) Test(
 
 	goTest = append(goTest, pkgs...)
 
-	return ctr.WithExec(goTest), nil
+	return ctr.WithExec(goTest, ContainerWithExecOpts{
+		InsecureRootCapabilities:      insecureRootCapabilities,
+		ExperimentalPrivilegedNesting: nest,
+	}), nil
 }
 
 // Gotestsum runs tests using the gotestsum CLI.
