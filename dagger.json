@@ -1,0 +1,13 @@
+{
+  "root-for": [
+    {
+      "source": "docker"
+    },
+    {
+      "source": "test"
+    },
+    {
+      "source": "testcontainers"
+    }
+  ]
+}

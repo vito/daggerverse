@@ -1,8 +1,10 @@
 {
   "name": "docker",
-  "root": "..",
   "sdk": "go",
   "dependencies": [
-    "github.com/kpenfound/dagger-modules/proxy@4974464186921b92deec3299cf3f94d3067dddca"
+    {
+      "name": "proxy",
+      "source": "github.com/kpenfound/dagger-modules/proxy@4974464186921b92deec3299cf3f94d3067dddca"
+    }
   ]
 }
