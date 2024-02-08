@@ -9,9 +9,14 @@ func (m *Docker) Daemon() *Daemon {
 }
 
 // Compose returns an API for using Docker Compose.
-func (m *Docker) Compose(dir *Directory, files Optional[[]string]) *Compose {
+func (m *Docker) Compose(
+	dir *Directory,
+	// +optional
+	// +default=["docker-compose.yml"]
+	files []string,
+) *Compose {
 	return &Compose{
 		Dir:   dir,
-		Files: files.GetOr([]string{"docker-compose.yml"}),
+		Files: files,
 	}
 }
