@@ -2,13 +2,13 @@ package main
 
 import (
 	"context"
-	"time"
+	"path"
 
 	"golang.org/x/sync/errgroup"
 )
 
 func (m *Main) Testcontainers(ctx context.Context) error {
-	examples := dag.Git("https://github.com/testcontainers/testcontainers-go").
+	repo := dag.Git("https://github.com/testcontainers/testcontainers-go").
 		Commit("504645849200304ea4257efee027e70276cf11c9").
 		Tree()
 
@@ -28,17 +28,15 @@ func (m *Main) Testcontainers(ctx context.Context) error {
 	} {
 		suite := suite
 		eg.Go(func() error {
-			_, err := dag.Golang().
-				WithVersion("1").
-				WithSource(examples).
-				Container().
+			_, err := dag.
 				Pipeline(suite).
-				With(dag.Testcontainers().Setup).
-				WithEnvVariable("BUST", time.Now().String()).
-				WithWorkdir("/src/examples").
-				WithWorkdir(suite).
-				WithFocus().
-				WithExec([]string{"test", "-v", "."}).
+				Go(GoOpts{
+					Base: dag.Go().Base().With(dag.Testcontainers().Setup),
+				}).
+				Test(repo, GoTestOpts{
+					Subdir:  path.Join("examples", suite),
+					Verbose: true,
+				}).
 				Sync(ctx)
 			return err
 		})

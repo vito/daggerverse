@@ -4,7 +4,8 @@
   "dependencies": [
     {
       "name": "proxy",
-      "source": "github.com/kpenfound/dagger-modules/proxy@4974464186921b92deec3299cf3f94d3067dddca"
+      "source": "github.com/kpenfound/dagger-modules/proxy@053eeb803f87005cf04ae3ad6cc4bde6031b4d35"
     }
-  ]
+  ],
+  "source": "."
 }

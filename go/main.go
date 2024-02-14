@@ -121,6 +121,13 @@ func (g *Go) Build(
 func (g *Go) Test(
 	// The directory containing code to test.
 	src *Directory,
+	// Subdirectory in which to run the tests, i.e. go run -C.
+	//
+	// This is useful when running tests in a Go module that refers to a parent
+	// module.
+	//
+	// +optional
+	subdir string,
 	// Packages to test.
 	// +optional
 	packages []string,
@@ -151,6 +158,10 @@ func (g *Go) Test(
 	}
 
 	goTest := []string{"go", "test"}
+
+	if subdir != "" {
+		goTest = append(goTest, "-C", subdir)
+	}
 
 	if race {
 		goTest = append(goTest, "-race")

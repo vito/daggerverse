@@ -11,12 +11,14 @@
       "source": "../docker"
     },
     {
-      "name": "testcontainers",
-      "source": "../testcontainers"
+      "name": "go",
+      "source": "../go"
     },
     {
-      "name": "golang",
-      "source": "github.com/quartz-technology/daggerverse/golang@8812a090cd9096df1e4c3d1d9402b36b091304cb"
+      "name": "testcontainers",
+      "source": "../testcontainers"
     }
-  ]
+  ],
+  "source": ".",
+  "engineVersion": "v0.9.10"
 }
