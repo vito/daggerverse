@@ -9,7 +9,8 @@ import (
 type Boomer struct {
 }
 
-// Boom keeps calling itself with a larger and larger n until it booms.
+// Boom keeps calling itself with a larger and larger n until your computer
+// explodes.
 func (m *Boomer) Boom(
 	ctx context.Context,
 	// +optional
