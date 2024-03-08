@@ -1,9 +1,6 @@
 {
   "name": "apko",
   "sdk": "go",
-  "root-for": [
-    {
-      "source": "."
-    }
-  ]
+  "source": ".",
+  "engineVersion": "v0.10.0"
 }

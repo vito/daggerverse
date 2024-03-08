@@ -1,3 +1,4 @@
+// Apko builds containers from simple lists of packages.
 package main
 
 import (
@@ -6,7 +7,14 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Apko provides utilities for bootstrapping containers from simple package lists.
+// `apko` is a command-line tool developed by Chainguard
+// (https://chainguard.dev) that allows users to build container images using a
+// declarative language based on YAML. `apko` is so named as it uses the Alpine
+// apk package format and is inspired by the `ko` build tool.
+//
+// See https://edu.chainguard.dev/open-source/apko/getting-started-with-apko/
+// for more information.
+
 type Apko struct{}
 
 // Alpine returns a Container with the specified packages installed from Alpine
