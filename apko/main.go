@@ -1,4 +1,4 @@
-// Apko builds containers from simple lists of packages.
+// Apko builds Alpine or Wolfi containers from simple lists of packages.
 package main
 
 import (
