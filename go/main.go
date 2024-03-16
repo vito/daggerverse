@@ -1,3 +1,5 @@
+// High-level interfaces for building and testing Go code.
+
 package main
 
 import (
@@ -5,7 +7,6 @@ import (
 	"strings"
 )
 
-// Go provides a set of high-level interfaces for building and testing Go code.
 type Go struct {
 	Base       *Container
 	ModCache   *CacheVolume
@@ -216,7 +217,6 @@ func (g *Go) Gotestsum(
 		"--format=" + format,
 	}
 	cmd = append(cmd, gotestsumFlags...)
-	cmd = append(cmd, goTestFlags...)
 	if race {
 		goTestFlags = append(goTestFlags, "-race")
 	}
