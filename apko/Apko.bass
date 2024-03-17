@@ -1,5 +1,5 @@
 (def *description*
-  "Apko builds Alpine or Wolfi containers from simple lists of packages.")
+  "Builds containers from simple lists of packages using the Apko CLI.")
 
 ^{:type :Apko}
 (defn new [{}]
