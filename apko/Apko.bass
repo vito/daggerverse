@@ -1,0 +1,80 @@
+(def *description*
+  "Apko builds Alpine or Wolfi containers from simple lists of packages.")
+
+^{:type :Apko}
+(defn new [{}]
+  {:config {:contents {:packages []
+                       :repositories []}}
+   :cmd "/bin/sh"
+   :environment {:PATH "/usr/sbin:/sbin:/usr/bin:/bin"}
+   :archs []})
+
+; Adds the Alpine repository and alpine-base package.
+^{:type :Apko}
+(defn with-alpine [self {:branch
+                         ^{:type :String
+                           :default "edge"}
+                         branch}]
+  (-> self
+      (update-in [:config :contents :packages] conj
+                 "alpine-base")
+      (update-in [:config :contents :repositories] conj
+                 (str "https://dl-cdn.alpinelinux.org/alpine/" branch "/main"))))
+
+; Adds the Wolfi repository, keyring, and wolfi-base package.
+^{:type :Apko}
+(defn with-wolfi [self {}]
+  (-> self
+      (update-in [:config :contents :packages] conj
+                 "wolfi-base")
+      (update-in [:config :contents :keyring] conj
+                 "https://packages.wolfi.dev/os/wolfi-signing.rsa.pub")
+      (update-in [:config :contents :repositories] conj
+                 "https://packages.wolfi.dev/os")))
+
+; Adds the specified packages to the list.
+^{:type :Apko}
+(defn with-packages [self {:packages
+                           ^{:type [:String]}
+                           packages}]
+  (update-in self [:config :contents :packages] concat packages))
+
+; Builds the configured image and returns it as a Container.
+^{:type :Container}
+(defn as-container [self {}]
+  (-> ($$ build
+          --cache-dir /apkache/
+          (mkfile ./config.yml (json self:config))
+          "latest"
+          ./layout.tar)
+      (with-image (linux/cgr.dev/chainguard/apko))
+      ; (with-mount (mkfs) /layout/)
+      (with-mount (cache-dir "apko") /apkache/)
+      (subpath ./layout.tar)
+      (oci-load {:os "linux"}))) ; TODO
+
+; Alpine returns a Container with the specified packages installed from Alpine
+; repositories.
+^{:type :Container}
+(defn alpine [self {:packages ^{:type [:String]} packages
+                    :branch ^{:type :String :default "edge"} branch}]
+  (-> self
+      (with-alpine {:branch branch})
+      (with-packages {:packages packages})
+      (as-container {})))
+
+; Alpine returns a Container with the specified packages installed from Alpine
+; repositories.
+^{:type :Container}
+(defn wolfi [self {:packages ^{:type [:String]} packages}]
+  (-> self
+      (with-wolfi {:branch branch})
+      (with-packages {:packages packages})
+      (as-container {})))
+
+; Updates a value in a nested scope structure.
+(defn update-in [val ks f & args]
+  (case ks
+    [] val
+    [k]      (assoc val k (apply f (cons (k val) args)))
+    [k & ks] (assoc val k (update-in (k val) ks f & args))))
