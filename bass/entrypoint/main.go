@@ -2,12 +2,12 @@ package main
 
 import (
 	"context"
+	"embed"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
-	"path/filepath"
-	"strings"
 	"time"
 
 	"dagger.io/dagger"
@@ -18,17 +18,20 @@ import (
 	"github.com/vito/bass/pkg/cli"
 	"github.com/vito/bass/pkg/ioctx"
 	"github.com/vito/bass/pkg/runtimes"
+	"github.com/vito/bass/pkg/zapctx"
+	"go.uber.org/zap/zapcore"
 )
 
 func main() {
 	ctx := context.Background()
 	ctx = bass.WithTrace(ctx, &bass.Trace{})
 	ctx = ioctx.StderrToContext(ctx, os.Stderr)
+	ctx = zapctx.ToContext(ctx, bass.StdLogger(zapcore.DebugLevel))
 
 	slogOpts := &tint.Options{
 		TimeFormat: time.TimeOnly,
 		NoColor:    false,
-		Level:      slog.LevelWarn,
+		Level:      slog.LevelInfo,
 	}
 	slog.SetDefault(slog.New(tint.NewHandler(os.Stderr, slogOpts)))
 
@@ -97,6 +100,9 @@ func main() {
 	}
 }
 
+//go:embed init.bass
+var initSrc embed.FS
+
 func invoke(ctx context.Context, modSrcDir string, modName string, parentJSON []byte, parentName string, fnName string, inputArgs map[string][]byte) (_ any, err error) {
 	pool, err := runtimes.NewPool(ctx, &bass.Config{
 		Runtimes: []bass.RuntimeConfig{
@@ -126,39 +132,40 @@ func invoke(ctx context.Context, modSrcDir string, modName string, parentJSON []
 		args.Set(bass.Symbol(k), val)
 	}
 
-	if parentName == "" {
-		return initModule(ctx, modSrcDir, modName)
-	}
-
-	filePath := filepath.Join(modSrcDir, fmt.Sprintf("%s.bass", parentName))
-
-	dir, base := filepath.Split(filePath)
-	if dir == "" {
-		dir = "."
-	}
-
 	cmd := bass.NewHostPath(
-		dir,
-		bass.ParseFileOrDirPath(filepath.ToSlash(base)),
+		modSrcDir,
+		bass.ParseFileOrDirPath(modName+".bass"),
 	)
 
 	thunk := bass.Thunk{
 		Args: []bass.Value{cmd},
 	}
 
-	sess := bass.NewBass()
-
-	mod, err := sess.Load(ctx, thunk)
+	sess, err := initBass(ctx)
 	if err != nil {
 		return nil, err
+	}
+
+	bassMod, err := sess.Load(ctx, thunk)
+	if err != nil {
+		return nil, err
+	}
+
+	if parentName == "" {
+		return initModule(ctx, bassMod)
 	}
 
 	if fnName == "" {
 		fnName = "new"
 	}
 
+	var objMod *bass.Scope
+	if err := bassMod.GetDecode(bass.Symbol(strcase.ToCamel(parentName)), &objMod); err != nil {
+		return nil, fmt.Errorf("failed to get parent object: %w", err)
+	}
+
 	var fn bass.Applicative
-	if err := mod.GetDecode(bass.Symbol(strcase.ToKebab(fnName)), &fn); err != nil {
+	if err := objMod.GetDecode(bass.Symbol(strcase.ToKebab(fnName)), &fn); err != nil {
 		return nil, fmt.Errorf("failed to get new function: %w", err)
 	}
 
@@ -169,7 +176,7 @@ func invoke(ctx context.Context, modSrcDir string, modName string, parentJSON []
 		argsList = bass.NewList(self, args)
 	}
 
-	ret, err := bass.Trampoline(ctx, fn.Call(ctx, argsList, mod, bass.Identity))
+	ret, err := bass.Trampoline(ctx, fn.Call(ctx, argsList, bassMod, bass.Identity))
 	if err != nil {
 		return nil, fmt.Errorf("failed to call function: %w", err)
 	}
@@ -195,54 +202,53 @@ func invoke(ctx context.Context, modSrcDir string, modName string, parentJSON []
 	return ret, nil
 }
 
-func initModule(ctx context.Context, modSrcDir, modName string) (_ any, rerr error) {
+func initBass(ctx context.Context) (*bass.Session, error) {
+	scope := bass.NewStandardScope()
+	initPath := bass.NewFSPath(initSrc, bass.ParseFileOrDirPath("init.bass"))
+	if _, err := bass.EvalFSFile(ctx, scope, initPath); err != nil {
+		return nil, fmt.Errorf("failed to eval init.bass: %w", err)
+	}
+	return bass.NewSession(scope), nil
+}
+
+func initModule(ctx context.Context, bassMod *bass.Scope) (_ any, rerr error) {
 	dagMod := dag.Module()
 
-	bassScripts, err := filepath.Glob(filepath.Join(modSrcDir, "*.bass"))
-	if err != nil {
-		return nil, fmt.Errorf("failed to list bass scripts: %w", err)
+	var desc string
+	if err := bassMod.GetDecode("*description*", &desc); err == nil {
+		dagMod = dagMod.WithDescription(desc)
 	}
 
-	slog.Debug("found scripts", "scripts", bassScripts)
-
-	sess := bass.NewBass()
-
-	for _, filePath := range bassScripts {
-		name, _ := strings.CutSuffix(filepath.Base(filePath), ".bass")
-
-		objDef := dag.TypeDef().WithObject(name)
-
-		dir, base := filepath.Split(filePath)
-		if dir == "" {
-			dir = "."
+	for name, val := range bassMod.Bindings {
+		var ann bass.Annotated
+		if err := val.Decode(&ann); err != nil {
+			slog.Info("not annotated; assuming internal", "name", name, "error", err)
+			continue
 		}
 
-		cmd := bass.NewHostPath(
-			dir,
-			bass.ParseFileOrDirPath(filepath.ToSlash(base)),
-		)
-
-		thunk := bass.Thunk{
-			Args: []bass.Value{cmd},
+		var objName bass.Symbol
+		if err := ann.Meta.GetDecode("object", &objName); err != nil {
+			slog.Info("no return type defined; assuming internal", "name", name, "error", err)
+			continue
+		}
+		var objOpts dagger.TypeDefWithObjectOpts
+		var desc string
+		if err := ann.Meta.GetDecode(bass.DocMetaBinding, &desc); err == nil {
+			objOpts.Description = desc
 		}
 
-		bassMod, err := sess.Load(ctx, thunk)
-		if err != nil {
-			return nil, err
-		}
+		objDef := dag.TypeDef().WithObject(objName.String(), objOpts)
 
-		if strcase.ToCamel(name) == strcase.ToCamel(modName) {
-			var desc string
-			if err := bassMod.GetDecode("*description*", &desc); err == nil {
-				dagMod = dagMod.WithDescription(desc)
-			}
+		var objScope *bass.Scope
+		if err := val.Decode(&objScope); err != nil {
+			slog.Info("not a scope; skipping", "name", name, "error", err)
+			continue
 		}
-
-		for name, v := range bassMod.Bindings {
-			bassFnName := name.String()
+		for subName, subVal := range objScope.Bindings {
+			bassFnName := subName.String()
 
 			var ann bass.Annotated
-			if err := bassMod.GetDecode(name, &ann); err != nil {
+			if err := subVal.Decode(&ann); err != nil {
 				slog.Info("not annotated; assuming internal", "name", bassFnName, "error", err)
 				continue
 			}
@@ -255,115 +261,53 @@ func initModule(ctx context.Context, modSrcDir, modName string) (_ any, rerr err
 			}
 			retDef, err := typeOf(retType)
 			if err != nil {
-				return nil, fmt.Errorf("failed to get type of annotated value: %w", err)
+				return nil, fmt.Errorf("failed to get type of return value: %w", err)
 			}
 			funDef := dag.Function(bassFnName, retDef)
+
+			// Wire up args
+			var args bass.Scope
+			if err := ann.Meta.GetDecode("args", &args); err != nil {
+				slog.Info("no return type defined; assuming internal", "name", bassFnName, "error", err)
+				continue
+			}
+			err = args.Each(func(argName bass.Symbol, config bass.Value) error {
+				var scope *bass.Scope
+				if err := config.Decode(&scope); err != nil {
+					return fmt.Errorf("binding metadata must evaluate to a scope: %w", err)
+				}
+				var argType bass.Value
+				if err := scope.GetDecode("type", &argType); err != nil {
+					return fmt.Errorf("failed to get annotated type for %s.%s from %s: %w", bassFnName, argName, scope, err)
+				}
+				var opts dagger.FunctionWithArgOpts
+				var defaultVal bass.Value
+				if err := scope.GetDecode("default", &defaultVal); err == nil {
+					payload, err := bass.MarshalJSON(defaultVal)
+					if err != nil {
+						return fmt.Errorf("failed to marshal default value: %w", err)
+					}
+					opts.DefaultValue = dagger.JSON(payload)
+				}
+				var desc string
+				if err := scope.GetDecode(bass.DocMetaBinding, &desc); err == nil {
+					opts.Description = desc
+				}
+				argDef, err := typeOf(argType)
+				if err != nil {
+					return fmt.Errorf("failed to get type of arg value: %w", err)
+				}
+				funDef = funDef.WithArg(argName.String(), argDef, opts)
+				return nil
+			})
+			if err != nil {
+				return nil, fmt.Errorf("failed to wire up args: %w", err)
+			}
 
 			// Wire up description
 			var desc string
 			if err := ann.Meta.GetDecode(bass.DocMetaBinding, &desc); err == nil {
 				funDef = funDef.WithDescription(desc)
-			}
-
-			// Wire up arguments
-			var app bass.Applicative
-			if err := v.Decode(&app); err == nil {
-				v = app.Unwrap()
-			}
-			var op *bass.Operative
-			if err := v.Decode(&op); err != nil {
-				slog.Info("not an operative; skipping", "error", err)
-				continue
-			}
-			var args bass.List
-			if err := op.Bindings.Decode(&args); err != nil {
-				slog.Info("args is not a list; skipping", "error", err)
-				continue
-			}
-
-			i := 0
-			err = bass.Each(args, func(arg bass.Value) error {
-				i++
-				switch i {
-				case 1:
-					// skip 'self' arg
-					return nil
-				case 2:
-					var binds bass.Bind
-					if err := arg.Decode(&binds); err != nil {
-						return fmt.Errorf("arg must be named bindings, {:like this} (%w)", err)
-					}
-					var argName string
-					i := 0
-					for _, b := range binds {
-						if i%2 == 0 {
-							var sym bass.Keyword
-							if err := b.Decode(&sym); err != nil {
-								return fmt.Errorf("arg must be named bindings, {:like this} (%w)", err)
-							}
-							argName = sym.Symbol().String()
-						} else {
-							var ann bass.Annotate
-							if err := b.Decode(&ann); err != nil {
-								return fmt.Errorf("arg must be named bindings, {:like this} (%w)", err)
-							}
-							metaVal, err := bass.Trampoline(ctx, ann.MetaBind().Eval(ctx, bass.NewEmptyScope(), bass.Identity))
-							if err != nil {
-								return fmt.Errorf("failed to eval binding metadata: %w", err)
-							}
-							var scope *bass.Scope
-							if err := metaVal.Decode(&scope); err != nil {
-								return fmt.Errorf("binding metadata must evaluate to a scope: %w", err)
-							}
-							var argType bass.Value
-							if err := scope.GetDecode("type", &argType); err != nil {
-								return fmt.Errorf("failed to get annotated type for %s.%s: %w", bassFnName, argName, err)
-							}
-							var opts dagger.FunctionWithArgOpts
-							var defaultVal bass.Value
-							if err := scope.GetDecode("default", &defaultVal); err == nil {
-								payload, err := bass.MarshalJSON(defaultVal)
-								if err != nil {
-									return fmt.Errorf("failed to marshal default value: %w", err)
-								}
-								opts.DefaultValue = dagger.JSON(payload)
-							}
-							var desc string
-							if err := scope.GetDecode(bass.DocMetaBinding, &desc); err == nil {
-								opts.Description = desc
-							}
-							argDef, err := typeOf(argType)
-							if err != nil {
-								return fmt.Errorf("failed to get type of annotated value: %w", err)
-							}
-							funDef = funDef.WithArg(argName, argDef, opts)
-						}
-						i++
-					}
-				default:
-					return fmt.Errorf("%s: too many arguments", bassFnName)
-				}
-
-				// 					var ann bass.Annotated
-				// 					if err := arg.Decode(&ann); err != nil {
-				// 						return fmt.Errorf("failed to get annotated value of arg: %w", err)
-				// 					}
-
-				// 					var argType bass.Value
-				// 					if err := ann.Meta.GetDecode("type", &argType); err != nil {
-				// 						return fmt.Errorf("failed to get annotated type for %s.%s: %w", bassFnName, arg, err)
-				// 					}
-				// 					argDef, err := typeOf(argType)
-				// 					if err != nil {
-				// 						return fmt.Errorf("failed to get type of annotated value: %w", err)
-				// 					}
-
-				// 					// TODO description
-				// 					funDef = funDef.WithArg(arg.String(), argDef)
-				return nil
-			})
-			if err != nil {
-				return nil, err
 			}
 
 			if bassFnName == "new" {
@@ -401,6 +345,8 @@ func typeOf(val bass.Value) (*dagger.TypeDef, error) {
 		default:
 			return def.WithObject(x.String()), nil
 		}
+	case bass.Annotate:
+		return typeOf(x.Value)
 	default:
 		return nil, fmt.Errorf("unsupported type: %T", val)
 	}

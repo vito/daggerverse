@@ -9,7 +9,8 @@ require (
 	github.com/iancoleman/strcase v0.3.0
 	github.com/lmittmann/tint v1.0.4
 	github.com/vektah/gqlparser/v2 v2.5.6
-	github.com/vito/bass v0.12.1-0.20240317045823-ba13650688a6
+	github.com/vito/bass v0.12.1-0.20240318025720-bf53c90d467e
+	go.uber.org/zap v1.27.0
 	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa
 	golang.org/x/sync v0.6.0
 )
@@ -103,7 +104,6 @@ require (
 	go.opentelemetry.io/proto/otlp v1.0.0 // indirect
 	go.step.sm/crypto v0.16.2 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/crypto v0.21.0 // indirect
 	golang.org/x/mod v0.14.0 // indirect
 	golang.org/x/net v0.22.0 // indirect

@@ -1,0 +1,60 @@
+(def *description*
+  "Builds containers from simple lists of packages using the Apko CLI.")
+
+; An Apko image config and container builder.
+(defobj Apko
+  ; Initializes an image configuration with some sane defaults.
+  (defn new [] => :Apko
+    {:config {:contents {:packages []
+                         :repositories []}}
+     :cmd "/bin/sh"
+     :environment {:PATH "/usr/sbin:/sbin:/usr/bin:/bin"}
+     :archs []})
+
+  ; Adds the Alpine repository and alpine-base package.
+  (defn with-alpine [:branch branch "edge"] => :Apko
+    (-> self
+        (update-in [:config :contents :packages] conj
+                   "alpine-base")
+        (update-in [:config :contents :repositories] conj
+                   (str "https://dl-cdn.alpinelinux.org/alpine/" branch "/main"))))
+
+  ; Adds the Wolfi repository, keyring, and wolfi-base package.
+  (defn with-wolfi [] => :Apko
+    (-> self
+        (update-in [:config :contents :packages] conj
+                   "wolfi-base")
+        (update-in [:config :contents :keyring] conj
+                   "https://packages.wolfi.dev/os/wolfi-signing.rsa.pub")
+        (update-in [:config :contents :repositories] conj
+                   "https://packages.wolfi.dev/os")))
+
+  ; Adds the specified packages to the list.
+  (defn with-packages [:packages packages [:String]] => :Apko
+    (update-in self [:config :contents :packages] concat packages))
+
+  ; Builds the configured image and returns it as a Container.
+  (defn as-container [] => :Container
+    (let [config (mkfile ./config.yml (json self:config))]
+      (-> ($ apko build --cache-dir /apkache/ $config "latest" ./layout.tar)
+          (with-image (linux/cgr.dev/chainguard/apko))
+          (with-mount (cache-dir "apko") /apkache/)
+          (subpath ./layout.tar)
+          (oci-load {:os "linux"})))) ; TODO
+
+  ; Alpine returns a Container with the specified packages installed from Alpine
+  ; repositories.
+  (defn alpine [:packages packages [:String]
+                :branch branch "edge"] => :Container
+    (-> self
+        (with-alpine {:branch branch})
+        (with-packages {:packages packages})
+        (as-container {})))
+
+  ; Alpine returns a Container with the specified packages installed from Alpine
+  ; repositories.
+  (defn wolfi [:packages packages [:String]] => :Container
+    (-> self
+        (with-wolfi {:branch branch})
+        (with-packages {:packages packages})
+        (as-container {}))))
