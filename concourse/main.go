@@ -220,8 +220,6 @@ type Pipeline struct {
 }
 
 func (m *Concourse) Interpolate(ctx context.Context, config string) (string, error) {
-	slog.Info("interpolating", "config", config)
-
 	staticVars := vars.StaticVariables{}
 	for _, secret := range m.SecretVars {
 		plaintext, err := secret.Value.Plaintext(ctx)
@@ -364,14 +362,11 @@ func (pl *Pipeline) imageResource(ctx context.Context, resourceType string, sour
 		return nil, err
 	}
 	imageResource := pl.Concourse.Resource(resourceType, baseType.Container, JSON(srcJSON))
-	vs, err := imageResource.Check(ctx, "")
+	ver, err := imageResource.LatestVersion(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("check resource type %s image: %w", resourceType, err)
 	}
-	if len(vs) == 0 {
-		return nil, fmt.Errorf("no versions found for image")
-	}
-	dir, err := vs[0].Get(ctx, JSON(paramsJSON))
+	dir, err := ver.Get(ctx, JSON(paramsJSON))
 	if err != nil {
 		return nil, fmt.Errorf("fetch image: %w", err)
 	}
@@ -580,7 +575,7 @@ func (r *Resource) LatestVersion(ctx context.Context) (*ResourceVersion, error) 
 	if len(vs) == 0 {
 		return nil, fmt.Errorf("resource %q: no versions found", r.Name)
 	}
-	return vs[0], nil
+	return vs[len(vs)-1], nil
 }
 
 // Create or update a version of the resource.
@@ -651,6 +646,7 @@ func (r *ResourceVersion) Get(
 		return nil, err
 	}
 	return r.Container.
+			WithDirectory("/resource", dag.Directory()).
 			WithExec([]string{"/opt/resource/in", "/resource"}, ContainerWithExecOpts{
 				Stdin: string(reqPayload),
 			}).

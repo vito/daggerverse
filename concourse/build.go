@@ -3,53 +3,29 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
 
 	"github.com/concourse/concourse/atc"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 )
 
-// Build is a StepVisitor helper used for traversing a StepConfig and
-// calling configured hooks on the "base" step types, i.e. step types that do
-// not contain any other steps.
-//
-// Build must be updated with any new step type added. Steps which wrap
-// other steps must recurse through them, while steps which are "base" steps
-// must have a hook added for them, called when they visit the Build.
 type Build struct {
 	// Re-assigned throughout the visiting process without mutating.
 	Ctx context.Context
 
 	Concourse *Concourse
-	Pipeline  *Pipeline
+
+	Pipeline *Pipeline
 
 	// Runtime state modified as steps are executed.
 	State *BuildState
-
-	// // OnTask will be invoked for any *TaskStep present in the StepConfig.
-	// OnTask func(*atc.TaskStep) error
-
-	// // OnGet will be invoked for any *GetStep present in the StepConfig.
-	// OnGet func(*atc.GetStep) error
-
-	// // OnPut will be invoked for any *PutStep present in the StepConfig.
-	// OnPut func(*atc.PutStep) error
-
-	// // OnRun will be invoked for any *RunStep present in the StepConfig.
-	// OnRun func(*atc.RunStep) error
-
-	// // OnSetPipeline will be invoked for any *SetPipelineStep present in the StepConfig.
-	// OnSetPipeline func(*atc.SetPipelineStep) error
-
-	// // OnLoadVar will be invoked for any *LoadVarStep present in the StepConfig.
-	// OnLoadVar func(*atc.LoadVarStep) error
 }
-
-type Path string
 
 type BuildState struct {
 	Assets map[string]*Directory
@@ -145,8 +121,8 @@ func (build Build) VisitTask(step *atc.TaskStep) error {
 	// HACK: this won't run with a TTY, so disable stty
 	taskCtr = taskCtr.WithFile("/usr/bin/stty", taskCtr.File("/bin/true"))
 	taskCtr = taskCtr.WithExec(args, ContainerWithExecOpts{
-		// Concourse doesn't respect the entrypoint.
-		SkipEntrypoint: true,
+		SkipEntrypoint:           true, // Concourse doesn't respect entrypoint.
+		InsecureRootCapabilities: step.Privileged,
 	})
 
 	_, err = taskCtr.Sync(ctx)
@@ -195,7 +171,7 @@ func (build Build) VisitGet(step *atc.GetStep) error {
 		return build.Error(err)
 	}
 	build.State.StoreAsset(step.Name, dir)
-	dir, err = dir.Sync(ctx)
+	_, err = dir.Sync(ctx)
 	return err
 }
 
@@ -231,19 +207,24 @@ func (build Build) VisitLoadVar(step *atc.LoadVarStep) error {
 	return nil
 }
 
-// VisitTry recurses through to the wrapped step.
 func (build Build) VisitTry(step *atc.TryStep) error {
-	ctx, span := Tracer().Start(build.Ctx, "try")
-	defer span.End()
-	build.Ctx = ctx
-	return step.Step.Config.Visit(build)
+	// not worth the nesting
+	// ctx, span := Tracer().Start(build.Ctx, "try")
+	// defer span.End()
+	// build.Ctx = ctx
+	if err := step.Step.Config.Visit(build); err != nil {
+		trace.SpanFromContext(build.Ctx).
+			AddEvent("try.error.suppressed", trace.WithAttributes(
+				attribute.String("error", err.Error())))
+	}
+	return nil
 }
 
-// VisitDo recurses through to the wrapped steps.
 func (build Build) VisitDo(step *atc.DoStep) error {
-	ctx, span := Tracer().Start(build.Ctx, "do")
-	defer span.End()
-	build.Ctx = ctx
+	// not worth the nesting
+	// ctx, span := Tracer().Start(build.Ctx, "do")
+	// defer span.End()
+	// build.Ctx = ctx
 
 	for _, sub := range step.Steps {
 		err := sub.Config.Visit(build)
@@ -255,11 +236,11 @@ func (build Build) VisitDo(step *atc.DoStep) error {
 	return nil
 }
 
-// VisitInParallel recurses through to the wrapped steps.
 func (build Build) VisitInParallel(step *atc.InParallelStep) error {
-	ctx, span := Tracer().Start(build.Ctx, "in_parallel")
-	defer span.End()
-	build.Ctx = ctx
+	// not worth the noise, the spans already show that they're parallel
+	// ctx, span := Tracer().Start(build.Ctx, "in_parallel")
+	// defer span.End()
+	// build.Ctx = ctx
 
 	subBuild := build
 
@@ -279,7 +260,6 @@ func (build Build) VisitInParallel(step *atc.InParallelStep) error {
 	return eg.Wait()
 }
 
-// VisitAcross recurses through to the wrapped step.
 func (build Build) VisitAcross(step *atc.AcrossStep) error {
 	ctx, span := Tracer().Start(build.Ctx, "across")
 	defer span.End()
@@ -288,30 +268,25 @@ func (build Build) VisitAcross(step *atc.AcrossStep) error {
 	return step.Step.Visit(build)
 }
 
-// VisitTimeout recurses through to the wrapped step.
 func (build Build) VisitTimeout(step *atc.TimeoutStep) error {
 	ctx, span := Tracer().Start(build.Ctx, "timeout")
 	defer span.End()
 	build.Ctx = ctx
 
+	// TODO
 	return step.Step.Visit(build)
 }
 
-// VisitRetry recurses through to the wrapped step.
 func (build Build) VisitRetry(step *atc.RetryStep) error {
 	ctx, span := Tracer().Start(build.Ctx, "retry")
 	defer span.End()
 	build.Ctx = ctx
 
+	// TODO
 	return step.Step.Visit(build)
 }
 
-// VisitOnSuccess recurses through to the wrapped step and hook.
 func (build Build) VisitOnSuccess(step *atc.OnSuccessStep) error {
-	ctx, span := Tracer().Start(build.Ctx, "on_success")
-	defer span.End()
-	build.Ctx = ctx
-
 	err := step.Step.Visit(build)
 	if err != nil {
 		return err
@@ -320,58 +295,54 @@ func (build Build) VisitOnSuccess(step *atc.OnSuccessStep) error {
 	return step.Hook.Config.Visit(build)
 }
 
-// VisitOnFailure recurses through to the wrapped step and hook.
 func (build Build) VisitOnFailure(step *atc.OnFailureStep) error {
-	ctx, span := Tracer().Start(build.Ctx, "on_failure")
-	defer span.End()
-	build.Ctx = ctx
+	// ctx, span := Tracer().Start(build.Ctx, "on_failure")
+	// defer span.End()
+	// build.Ctx = ctx
 
 	err := step.Step.Visit(build)
 	if err != nil {
-		return err
+		ctx, span := Tracer().Start(build.Ctx, "on_failure")
+		defer span.End()
+		build.Ctx = ctx
+		return errors.Join(err, step.Hook.Config.Visit(build))
 	}
 
-	return step.Hook.Config.Visit(build)
+	return nil
 }
 
-// VisitOnAbort recurses through to the wrapped step and hook.
 func (build Build) VisitOnAbort(step *atc.OnAbortStep) error {
-	ctx, span := Tracer().Start(build.Ctx, "on_abort")
-	defer span.End()
-	build.Ctx = ctx
-
 	err := step.Step.Visit(build)
-	if err != nil {
-		return err
+
+	if build.Ctx.Err() != nil {
+		ctx, span := Tracer().Start(build.Ctx, "on_abort")
+		defer span.End()
+		build.Ctx = ctx
+		return errors.Join(err, step.Hook.Config.Visit(build))
 	}
 
-	return step.Hook.Config.Visit(build)
+	return err
 }
 
-// VisitOnError recurses through to the wrapped step and hook.
 func (build Build) VisitOnError(step *atc.OnErrorStep) error {
-	ctx, span := Tracer().Start(build.Ctx, "on_error")
-	defer span.End()
-	build.Ctx = ctx
-
 	err := step.Step.Visit(build)
 	if err != nil {
-		return err
+		ctx, span := Tracer().Start(build.Ctx, "on_error")
+		defer span.End()
+		build.Ctx = ctx
+		// TODO no distinction from failure?
+		return step.Hook.Config.Visit(build)
 	}
 
-	return step.Hook.Config.Visit(build)
+	return nil
 }
 
-// VisitEnsure recurses through to the wrapped step and hook.
-func (build Build) VisitEnsure(step *atc.EnsureStep) error {
-	ctx, span := Tracer().Start(build.Ctx, "ensure")
-	defer span.End()
-	build.Ctx = ctx
-
-	err := step.Step.Visit(build)
-	if err != nil {
-		return err
-	}
-
-	return step.Hook.Config.Visit(build)
+func (build Build) VisitEnsure(step *atc.EnsureStep) (rerr error) {
+	defer func() {
+		ctx, span := Tracer().Start(build.Ctx, "ensure")
+		defer span.End()
+		build.Ctx = ctx
+		rerr = errors.Join(rerr, step.Hook.Config.Visit(build))
+	}()
+	return step.Step.Visit(build)
 }
