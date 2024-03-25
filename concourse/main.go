@@ -521,7 +521,6 @@ func (r *Resource) Check(
 	if from != "" {
 		req["version"] = json.RawMessage(from)
 	}
-	slog.Info("checking resource", "source", sourceJSON)
 	reqPayload, err := json.Marshal(req)
 	if err != nil {
 		return nil, err
