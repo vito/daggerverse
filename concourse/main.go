@@ -14,15 +14,7 @@ import (
 	"github.com/concourse/concourse/atc"
 	"github.com/concourse/concourse/atc/configvalidate"
 	"github.com/concourse/concourse/vars"
-	"github.com/honeycombio/otel-config-go/otelconfig"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/propagation"
-	"go.opentelemetry.io/otel/sdk/resource"
-	"go.opentelemetry.io/otel/trace"
 	"gopkg.in/yaml.v2"
-
-	// TODO this has to be kept in sync with Dagger :(
-	semconv "go.opentelemetry.io/otel/semconv/v1.24.0"
 )
 
 func init() {
@@ -455,25 +447,7 @@ func (pl *Pipeline) Job(name string) *Job {
 	return nil
 }
 
-func Tracer() trace.Tracer {
-	return otel.Tracer("concourse")
-}
-
 func (job *Job) Run(ctx context.Context) error {
-	// TODO move all this to the Go runtime
-	otelShutdown, err := otelconfig.ConfigureOpenTelemetry(
-		otelconfig.WithResourceOption(resource.WithSchemaURL(semconv.SchemaURL)),
-		otelconfig.WithExporterInsecure(true),
-		otelconfig.WithTracesExporterInsecure(true),
-		otelconfig.WithMetricsExporterInsecure(true),
-	)
-	if err != nil {
-		slog.Warn("error initializing telemetry", "error", err)
-	} else {
-		defer otelShutdown()
-	}
-	ctx = propagation.TraceContext{}.Extract(ctx, propagation.MapCarrier{"traceparent": os.Getenv("TRACEPARENT")})
-
 	var cfg atc.JobConfig
 	if err := json.Unmarshal([]byte(job.Config), &cfg); err != nil {
 		return err
