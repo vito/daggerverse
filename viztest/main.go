@@ -7,7 +7,9 @@ import (
 	"time"
 )
 
-type Viztest struct{}
+type Viztest struct {
+	Num int
+}
 
 // LogThroughput logs the current time in a tight loop.
 func (m *Viztest) Spam() *Container {
@@ -26,6 +28,31 @@ func (*Viztest) LogStdout() {
 	fmt.Println("Hello, world!")
 }
 
+func (*Viztest) Echo(ctx context.Context, message string) (string, error) {
+	return dag.Container().
+		From("alpine").
+		WithExec([]string{"echo", message}).
+		Stdout(ctx)
+}
+
+func (v Viztest) Add(
+	// +optional
+	// +default=1
+	diff int,
+) *Viztest {
+	v.Num++
+	return &v
+}
+
+func (v Viztest) CountFiles(ctx context.Context, dir *Directory) (*Viztest, error) {
+	ents, err := dir.Entries(ctx)
+	if err != nil {
+		return nil, err
+	}
+	v.Num += len(ents)
+	return &v, nil
+}
+
 func (*Viztest) LogStderr() {
 	fmt.Fprintln(os.Stderr, "Hello, world!")
 }
@@ -42,4 +69,9 @@ func (*Viztest) Fail(ctx context.Context,
 		WithExec([]string{"false"}).
 		Sync(ctx)
 	return err
+}
+
+func (*Viztest) CustomSpan(ctx context.Context) {
+	ctx, span := Tracer().Start(ctx, "span1")
+	defer span.End()
 }
