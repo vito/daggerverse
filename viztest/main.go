@@ -35,6 +35,20 @@ func (*Viztest) Echo(ctx context.Context, message string) (string, error) {
 		Stdout(ctx)
 }
 
+// Accounting returns a container that sleeps for 1 second and then sleeps for
+// 2 seconds.
+//
+// It can be used to test UI cues for tracking down the place where a slow
+// operation is configured, which is more interesting than the place where it
+// is un-lazied when you're trying to figure out where to optimize.
+func (*Viztest) Accounting(ctx context.Context) *Container {
+	return dag.Container().
+		From("alpine").
+		WithEnvVariable("NOW", time.Now().String()).
+		WithExec([]string{"sleep", "1"}).
+		WithExec([]string{"sleep", "2"})
+}
+
 func (v Viztest) Add(
 	// +optional
 	// +default=1
