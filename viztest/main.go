@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -26,6 +27,20 @@ func (m *Viztest) Encapsulate(ctx context.Context) error {
 
 func (*Viztest) LogStdout() {
 	fmt.Println("Hello, world!")
+}
+
+func (*Viztest) PrimaryLines(n int) string {
+	buf := new(strings.Builder)
+	for i := 1; i <= n; i++ {
+		fmt.Fprintln(buf, "This is line", i, "of", n)
+	}
+	return buf.String()
+}
+
+func (*Viztest) ManyLines(n int) {
+	for i := 1; i <= n; i++ {
+		fmt.Println("This is line", i, "of", n)
+	}
 }
 
 func (*Viztest) Echo(ctx context.Context, message string) (string, error) {
