@@ -6,6 +6,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 )
 
 type Viztest struct {
@@ -41,6 +43,20 @@ func (*Viztest) ManyLines(n int) {
 	for i := 1; i <= n; i++ {
 		fmt.Println("This is line", i, "of", n)
 	}
+}
+
+func (vt *Viztest) ManySpans(ctx context.Context, n int) error {
+	eg := new(errgroup.Group)
+	for i := 1; i <= n; i++ {
+		i := i
+		eg.Go(func() error {
+			subCtx, span := Tracer().Start(ctx, fmt.Sprintf("span %d", i))
+			defer span.End()
+			_, err := vt.Echo(subCtx, fmt.Sprintf("This is span %d of %d at %s", i, n, time.Now()))
+			return err
+		})
+	}
+	return eg.Wait()
 }
 
 func (*Viztest) Echo(ctx context.Context, message string) (string, error) {
@@ -98,9 +114,4 @@ func (*Viztest) Fail(ctx context.Context,
 		WithExec([]string{"false"}).
 		Sync(ctx)
 	return err
-}
-
-func (*Viztest) CustomSpan(ctx context.Context) {
-	ctx, span := Tracer().Start(ctx, "span1")
-	defer span.End()
 }
