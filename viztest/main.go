@@ -82,7 +82,7 @@ func (*Viztest) StreamingLogs(
 			return
 		case <-ticker.C:
 			for i := 0; i < batchSize; i++ {
-				fmt.Println("This is line", lineNo)
+				fmt.Printf("%d: %d\n", lineNo, time.Now().UnixNano())
 				lineNo += 1
 			}
 		}
