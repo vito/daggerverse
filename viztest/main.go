@@ -45,11 +45,17 @@ func (*Viztest) ManyLines(n int) {
 	}
 }
 
-func (vt *Viztest) ManySpans(ctx context.Context, n int) error {
+func (vt *Viztest) ManySpans(
+	ctx context.Context,
+	n int,
+	// +default=0
+	delayMs int,
+) error {
 	eg := new(errgroup.Group)
 	for i := 1; i <= n; i++ {
 		i := i
 		eg.Go(func() error {
+			time.Sleep(time.Duration(i*delayMs) * time.Millisecond)
 			subCtx, span := Tracer().Start(ctx, fmt.Sprintf("span %d", i))
 			defer span.End()
 			_, err := vt.Echo(subCtx, fmt.Sprintf("This is span %d of %d at %s", i, n, time.Now()))
@@ -57,6 +63,30 @@ func (vt *Viztest) ManySpans(ctx context.Context, n int) error {
 		})
 	}
 	return eg.Wait()
+}
+
+func (*Viztest) StreamingLogs(
+	ctx context.Context,
+	// +optional
+	// +default=5
+	batchSize int,
+	// +optional
+	// +default=500
+	delayMs int,
+) {
+	ticker := time.NewTicker(time.Duration(delayMs) * time.Millisecond)
+	lineNo := 1
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			for i := 0; i < batchSize; i++ {
+				fmt.Println("This is line", lineNo)
+				lineNo += 1
+			}
+		}
+	}
 }
 
 func (*Viztest) Echo(ctx context.Context, message string) (string, error) {
