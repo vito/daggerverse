@@ -10,7 +10,7 @@
                          :keyring []}
               :cmd "/bin/sh"
               :environment {:PATH "/usr/sbin:/sbin:/usr/bin:/bin"}
-              :archs []}})
+              :archs [*arch*]}})
 
   ; Adds the Alpine repository and alpine-base package.
   (defn with-alpine [:branch branch "edge"] => :Apko

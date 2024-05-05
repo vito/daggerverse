@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 	"time"
 
 	"dagger.io/dagger"
@@ -204,11 +205,30 @@ func invoke(ctx context.Context, modSrcDir string, modName string, parentJSON []
 
 func initBass(ctx context.Context) (*bass.Session, error) {
 	scope := bass.NewStandardScope()
+	if err := initPlatform(ctx, scope); err != nil {
+		return nil, fmt.Errorf("failed to init platform vars: %w", err)
+	}
 	initPath := bass.NewFSPath(initSrc, bass.ParseFileOrDirPath("init.bass"))
 	if _, err := bass.EvalFSFile(ctx, scope, initPath); err != nil {
 		return nil, fmt.Errorf("failed to eval init.bass: %w", err)
 	}
 	return bass.NewSession(scope), nil
+}
+
+func initPlatform(ctx context.Context, scope *bass.Scope) error {
+	// Set the default OCI platform as *platform*.
+	platStr, err := dag.DefaultPlatform(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get default platform: %w", err)
+	}
+	scope.Set("*platform*", bass.String(platStr))
+
+	// Set the non-OS portion of the OCI platform as *arch* so that we include v7
+	// in arm/v7.
+	_, arch, _ := strings.Cut(string(platStr), "/")
+	scope.Set("*arch*", bass.String(arch))
+
+	return nil
 }
 
 func initModule(ctx context.Context, bassMod *bass.Scope) (_ any, rerr error) {
