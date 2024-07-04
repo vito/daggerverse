@@ -55,9 +55,9 @@ func (vt *Viztest) ManySpans(
 	for i := 1; i <= n; i++ {
 		i := i
 		eg.Go(func() error {
-			time.Sleep(time.Duration(i*delayMs) * time.Millisecond)
 			subCtx, span := Tracer().Start(ctx, fmt.Sprintf("span %d", i))
 			defer span.End()
+			time.Sleep(time.Duration(i*delayMs) * time.Millisecond)
 			_, err := vt.Echo(subCtx, fmt.Sprintf("This is span %d of %d at %s", i, n, time.Now()))
 			return err
 		})
@@ -65,13 +65,14 @@ func (vt *Viztest) ManySpans(
 	return eg.Wait()
 }
 
+// Continuously prints batches of logs on an interval (default 1 per second).
 func (*Viztest) StreamingLogs(
 	ctx context.Context,
 	// +optional
-	// +default=5
+	// +default=1
 	batchSize int,
 	// +optional
-	// +default=500
+	// +default=1000
 	delayMs int,
 ) {
 	ticker := time.NewTicker(time.Duration(delayMs) * time.Millisecond)
@@ -83,6 +84,31 @@ func (*Viztest) StreamingLogs(
 		case <-ticker.C:
 			for i := 0; i < batchSize; i++ {
 				fmt.Printf("%d: %d\n", lineNo, time.Now().UnixNano())
+				lineNo += 1
+			}
+		}
+	}
+}
+
+// Continuously prints batches of logs on an interval (default 1 per second).
+func (*Viztest) StreamingChunks(
+	ctx context.Context,
+	// +optional
+	// +default=1
+	batchSize int,
+	// +optional
+	// +default=1000
+	delayMs int,
+) {
+	ticker := time.NewTicker(time.Duration(delayMs) * time.Millisecond)
+	lineNo := 1
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			for i := 0; i < batchSize; i++ {
+				fmt.Printf("%d: %d; ", lineNo, time.Now().UnixNano())
 				lineNo += 1
 			}
 		}
@@ -108,6 +134,13 @@ func (*Viztest) Accounting(ctx context.Context) *Container {
 		WithEnvVariable("NOW", time.Now().String()).
 		WithExec([]string{"sleep", "1"}).
 		WithExec([]string{"sleep", "2"})
+}
+
+// DeepSleep sleeps forever.
+func (*Viztest) DeepSleep(ctx context.Context) *Container {
+	return dag.Container().
+		From("alpine").
+		WithExec([]string{"sleep", "infinity"})
 }
 
 func (v Viztest) Add(
@@ -144,4 +177,12 @@ func (*Viztest) Fail(ctx context.Context,
 		WithExec([]string{"false"}).
 		Sync(ctx)
 	return err
+}
+
+func (*Viztest) Service(ctx context.Context) *Service {
+	return dag.Container().
+		From("python").
+		WithExposedPort(8000).
+		WithExec([]string{"python", "-m", "http.server"}).
+		AsService()
 }
