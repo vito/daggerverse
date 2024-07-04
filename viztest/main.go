@@ -55,9 +55,9 @@ func (vt *Viztest) ManySpans(
 	for i := 1; i <= n; i++ {
 		i := i
 		eg.Go(func() error {
+			time.Sleep(time.Duration(i*delayMs) * time.Millisecond)
 			subCtx, span := Tracer().Start(ctx, fmt.Sprintf("span %d", i))
 			defer span.End()
-			time.Sleep(time.Duration(i*delayMs) * time.Millisecond)
 			_, err := vt.Echo(subCtx, fmt.Sprintf("This is span %d of %d at %s", i, n, time.Now()))
 			return err
 		})
