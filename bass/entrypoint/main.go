@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"dagger/bass/internal/dagger"
+	"dagger/bass/internal/telemetry"
 
 	"github.com/iancoleman/strcase"
 	"github.com/lmittmann/tint"
@@ -20,6 +21,8 @@ import (
 	"github.com/vito/bass/pkg/ioctx"
 	"github.com/vito/bass/pkg/runtimes"
 	"github.com/vito/bass/pkg/zapctx"
+	"go.opentelemetry.io/otel/sdk/resource"
+	semconv "go.opentelemetry.io/otel/semconv/v1.25.0"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -27,6 +30,15 @@ var dag = dagger.Connect()
 
 func main() {
 	ctx := context.Background()
+
+	ctx = telemetry.InitEmbedded(ctx, resource.NewWithAttributes(
+		semconv.SchemaURL,
+		semconv.ServiceNameKey.String("dagger-bass-sdk"),
+	))
+	defer telemetry.Close()
+
+	dagger.SetMarshalContext(ctx)
+
 	ctx = bass.WithTrace(ctx, &bass.Trace{})
 	ctx = ioctx.StderrToContext(ctx, os.Stderr)
 	ctx = zapctx.ToContext(ctx, bass.StdLogger(zapcore.DebugLevel))
