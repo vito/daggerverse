@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"dagger.io/dagger"
-	"dagger.io/dagger/dag"
+	"dagger/bass/internal/dagger"
+
 	"github.com/iancoleman/strcase"
 	"github.com/lmittmann/tint"
 	"github.com/vito/bass/pkg/bass"
@@ -22,6 +22,8 @@ import (
 	"github.com/vito/bass/pkg/zapctx"
 	"go.uber.org/zap/zapcore"
 )
+
+var dag = dagger.Connect()
 
 func main() {
 	ctx := context.Background()
@@ -142,7 +144,7 @@ func invoke(ctx context.Context, modSrcDir string, modName string, parentJSON []
 		Args: []bass.Value{cmd},
 	}
 
-	sess, err := initBass(ctx)
+	sess, err := initBass(ctx, dag)
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +155,7 @@ func invoke(ctx context.Context, modSrcDir string, modName string, parentJSON []
 	}
 
 	if parentName == "" {
-		return initModule(ctx, bassMod)
+		return initModule(bassMod)
 	}
 
 	if fnName == "" {
@@ -203,9 +205,9 @@ func invoke(ctx context.Context, modSrcDir string, modName string, parentJSON []
 	return ret, nil
 }
 
-func initBass(ctx context.Context) (*bass.Session, error) {
+func initBass(ctx context.Context, dag *dagger.Client) (*bass.Session, error) {
 	scope := bass.NewStandardScope()
-	if err := initPlatform(ctx, scope); err != nil {
+	if err := initPlatform(ctx, dag, scope); err != nil {
 		return nil, fmt.Errorf("failed to init platform vars: %w", err)
 	}
 	initPath := bass.NewFSPath(initSrc, bass.ParseFileOrDirPath("init.bass"))
@@ -215,7 +217,7 @@ func initBass(ctx context.Context) (*bass.Session, error) {
 	return bass.NewSession(scope), nil
 }
 
-func initPlatform(ctx context.Context, scope *bass.Scope) error {
+func initPlatform(ctx context.Context, dag *dagger.Client, scope *bass.Scope) error {
 	// Set the default OCI platform as *platform*.
 	platStr, err := dag.DefaultPlatform(ctx)
 	if err != nil {
@@ -231,7 +233,7 @@ func initPlatform(ctx context.Context, scope *bass.Scope) error {
 	return nil
 }
 
-func initModule(ctx context.Context, bassMod *bass.Scope) (_ any, rerr error) {
+func initModule(bassMod *bass.Scope) (_ any, rerr error) {
 	dagMod := dag.Module()
 
 	var desc string
