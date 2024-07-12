@@ -401,8 +401,8 @@ github.com/vbatts/tar-split v0.11.3 h1:hLFqsOLQ1SsppQNTMpkpPXClLDfC2A3Zgy9OUU+RV
 github.com/vbatts/tar-split v0.11.3/go.mod h1:9QlHN18E+fEH7RdG+QAJJcuya3rqT7eXSTY7wGrAokY=
 github.com/vektah/gqlparser/v2 v2.5.16 h1:1gcmLTvs3JLKXckwCwlUagVn/IlV2bwqle0vJ0vy5p8=
 github.com/vektah/gqlparser/v2 v2.5.16/go.mod h1:1lz1OeCqgQbQepsGxPVywrjdBHW2T08PUS3pJqepRww=
-github.com/vito/bass v0.12.1-0.20240712155955-b2041f36023a h1:PB4/TouETsiurfpwRcf666UQdXlWPCZ+EAiNWk9exIA=
-github.com/vito/bass v0.12.1-0.20240712155955-b2041f36023a/go.mod h1:1Jg5KTLucfRxcO2scDr9GrJZInqsEL0OQMS5trXyy8g=
+github.com/vito/bass v0.12.1-0.20240712160301-04910306d8ac h1:1PcnRNnsDXtiuvr0tf4dBes63rEnIOC97O+3dtZdcbo=
+github.com/vito/bass v0.12.1-0.20240712160301-04910306d8ac/go.mod h1:1Jg5KTLucfRxcO2scDr9GrJZInqsEL0OQMS5trXyy8g=
 github.com/vito/invaders v0.0.2 h1:igc2c3fm89va6Qle9cEzKmFthYTeHse4Gnz6GWIlnpk=
 github.com/vito/invaders v0.0.2/go.mod h1:Pi5WKkYw/ru9Jm9VD2PXOuorZ86bx1BdNdEn35srCWk=
 github.com/vito/is v0.0.5 h1:Rkpwa1eZ372A4DFq92xblSkTm0X7aNUgEQ5fuM/RNK0=
