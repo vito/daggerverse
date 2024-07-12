@@ -10,13 +10,13 @@ require (
 	github.com/iancoleman/strcase v0.3.0
 	github.com/lmittmann/tint v1.0.4
 	github.com/vektah/gqlparser/v2 v2.5.16
-	github.com/vito/bass v0.12.1-0.20240710170348-8eaa749e7fd6
+	github.com/vito/bass v0.12.1-0.20240712155955-b2041f36023a
 	go.uber.org/zap v1.27.0
 	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa
 	golang.org/x/sync v0.7.0
 )
 
-require dagger.io/dagger v0.11.9 // indirect
+require dagger.io/dagger v0.12.0 // indirect
 
 require (
 	filippo.io/edwards25519 v1.0.0-rc.1 // indirect
