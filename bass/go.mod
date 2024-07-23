@@ -16,7 +16,7 @@ require (
 	golang.org/x/sync v0.7.0
 )
 
-require dagger.io/dagger v0.12.0 // indirect
+require dagger.io/dagger v0.12.2
 
 require (
 	filippo.io/edwards25519 v1.0.0-rc.1 // indirect

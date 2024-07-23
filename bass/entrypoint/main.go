@@ -11,9 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"dagger/bass/internal/dagger"
-	"dagger/bass/internal/telemetry"
-
 	"github.com/iancoleman/strcase"
 	"github.com/lmittmann/tint"
 	"github.com/vito/bass/pkg/bass"
@@ -24,6 +21,13 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.25.0"
 	"go.uber.org/zap/zapcore"
+
+	// Use the official SDK for the telemetry package for better compatibility.
+	// v0.12.3 adds a ctx arg to telemetry.Close() and this isn't generated code.
+	"dagger.io/dagger/telemetry"
+
+	// Use the embedded Dagger SDK for the client.
+	"dagger/bass/internal/dagger"
 )
 
 var dag = dagger.Connect()
