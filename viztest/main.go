@@ -166,6 +166,16 @@ func (*Viztest) LogStderr() {
 }
 
 // Fail fails after waiting for a certain amount of time.
+func (*Viztest) FailLog(ctx context.Context) error {
+	_, err := dag.Container().
+		From("alpine").
+		WithEnvVariable("NOW", time.Now().String()).
+		WithExec([]string{"sh", "-c", "echo im doing a lot of work; echo and then failing; exit 1"}).
+		Sync(ctx)
+	return err
+}
+
+// Fail fails after waiting for a certain amount of time.
 func (*Viztest) Fail(ctx context.Context,
 	// +optional
 	// +default="10"
