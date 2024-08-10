@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+set -e -u -x
+
+sources="$(ls *.go | grep -v dagger.gen.go)"
+
+while true; do
+  go build . 2>&1 | grep undefined: | awk '{print $NF}' | sort | uniq > /tmp/undefined
+  if [ ! -s /tmp/undefined ]; then
+    echo "done"
+    break
+  fi
+  echo "fixing $(wc -l /tmp/undefined) undefined symbols: $(cat /tmp/undefined | xargs)"
+  for x in $(cat /tmp/undefined); do
+    gofmt -l -w -r "$x -> dagger.${x}" $sources
+    sed -i -e "s/dagger.${x}:/${x}:/" $sources
+  done
+  goimports -w $sources
+done

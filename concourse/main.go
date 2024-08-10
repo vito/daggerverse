@@ -3,6 +3,7 @@
 package main
 
 import (
+	"concourse/internal/dagger"
 	"context"
 	"encoding/json"
 	"errors"
@@ -22,8 +23,8 @@ func init() {
 }
 
 type Concourse struct {
-	Container *Container
-	Postgres  *Container
+	Container *dagger.Container
+	Postgres  *dagger.Container
 	StateTag  string
 	WebPort   int
 	Runtime   string
@@ -41,14 +42,14 @@ func New(
 	image string,
 	// The Concourse container.
 	// +optional
-	container *Container,
+	container *dagger.Container,
 	// The Postgres image to use for the database.
 	// +optional
 	// +default="postgres:latest"
 	postgresImage string,
 	// The Postgres container to use for the database.
 	// +optional
-	postgres *Container,
+	postgres *dagger.Container,
 	// A tag to use for the state of the Concourse cluster.
 	// +optional
 	stateTag string,
@@ -116,7 +117,7 @@ func New(
 }
 
 // Runs an all-in-one Concourse cluster.
-func (m *Concourse) Quickstart() *Service {
+func (m *Concourse) Quickstart() *dagger.Service {
 	workerWorkDir := dag.CacheVolume(fmt.Sprintf("concourse-worker-work-dir-%s", m.StateTag))
 
 	return m.Container.
@@ -138,14 +139,14 @@ func (m *Concourse) Quickstart() *Service {
 		WithEnvVariable("CONCOURSE_ENABLE_ACROSS_STEP", "true").
 		WithEnvVariable("CONCOURSE_EXTERNAL_URL", fmt.Sprintf("http://localhost:%d", m.WebPort)).
 		WithEntrypoint(nil).
-		WithExec([]string{"/usr/local/bin/entrypoint.sh", "quickstart"}, ContainerWithExecOpts{
+		WithExec([]string{"/usr/local/bin/entrypoint.sh", "quickstart"}, dagger.ContainerWithExecOpts{
 			InsecureRootCapabilities: true,
 		}).
 		AsService()
 }
 
 // Runs the Concourse database.
-func (m *Concourse) Database() *Service {
+func (m *Concourse) Database() *dagger.Service {
 	return m.Postgres.
 		WithExposedPort(5432).
 		WithEnvVariable("POSTGRES_DB", "concourse").
@@ -163,7 +164,7 @@ func (m *Concourse) Database() *Service {
 //
 // See https://concourse-ci.org/implementing-resource-types.html for more
 // information.
-func (m *Concourse) Resource(name string, container *Container, source JSON) *Resource {
+func (m *Concourse) Resource(name string, container *dagger.Container, source dagger.JSON) *Resource {
 	return &Resource{
 		Concourse: m,
 		Name:      name,
@@ -175,11 +176,11 @@ func (m *Concourse) Resource(name string, container *Container, source JSON) *Re
 // A secret to use for a Concourse config ((variable)).
 type SecretVar struct {
 	Name  string
-	Value *Secret
+	Value *dagger.Secret
 }
 
 // Adds a secret to use for a Concourse config ((variable)).
-func (m Concourse) WithSecretVar(name string, value *Secret) *Concourse {
+func (m Concourse) WithSecretVar(name string, value *dagger.Secret) *Concourse {
 	m.SecretVars = append(m.SecretVars, &SecretVar{
 		Name:  name,
 		Value: value,
@@ -190,13 +191,13 @@ func (m Concourse) WithSecretVar(name string, value *Secret) *Concourse {
 // A static value to use for a Concourse config ((variable)).
 type Var struct {
 	Name  string
-	Value JSON
+	Value dagger.JSON
 }
 
 // Adds a variable to use for a Concourse config.
 //
 // See https://concourse-ci.org/vars.html for more information.
-func (m Concourse) WithVar(name string, value JSON) *Concourse {
+func (m Concourse) WithVar(name string, value dagger.JSON) *Concourse {
 	m.Vars = append(m.Vars, &Var{
 		Name:  name,
 		Value: value,
@@ -269,7 +270,7 @@ func itsSymbolsVsStringKeysAllOverAgain(whee any) any {
 // Load a pipeline configuration from a YAML configuration.
 //
 // See https://concourse-ci.org/pipelines.html for more information.
-func (m *Concourse) LoadPipeline(ctx context.Context, configFile *File) (*Pipeline, error) {
+func (m *Concourse) LoadPipeline(ctx context.Context, configFile *dagger.File) (*Pipeline, error) {
 	config, err := configFile.Contents(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("read config file: %w", err)
@@ -323,7 +324,7 @@ func (m *Concourse) LoadPipeline(ctx context.Context, configFile *File) (*Pipeli
 		pipeline.Resources = append(pipeline.Resources, Resource{
 			Name:      resource.Name,
 			Container: resourceType.Container,
-			Source:    JSON(src),
+			Source:    dagger.JSON(src),
 		})
 	}
 
@@ -336,14 +337,14 @@ func (m *Concourse) LoadPipeline(ctx context.Context, configFile *File) (*Pipeli
 		// pipeline.Jobs[job.Name] = JSON(cfgJSON)
 		pipeline.Jobs = append(pipeline.Jobs, Job{
 			Name:   job.Name,
-			Config: JSON(cfgJSON),
+			Config: dagger.JSON(cfgJSON),
 		})
 	}
 
 	return pipeline, nil
 }
 
-func (pl *Pipeline) imageResource(ctx context.Context, resourceType string, source atc.Source, params atc.Params) (*Container, error) {
+func (pl *Pipeline) imageResource(ctx context.Context, resourceType string, source atc.Source, params atc.Params) (*dagger.Container, error) {
 	baseType := pl.ResourceType(resourceType)
 	srcJSON, err := json.Marshal(source)
 	if err != nil {
@@ -353,12 +354,12 @@ func (pl *Pipeline) imageResource(ctx context.Context, resourceType string, sour
 	if err != nil {
 		return nil, err
 	}
-	imageResource := pl.Concourse.Resource(resourceType, baseType.Container, JSON(srcJSON))
+	imageResource := pl.Concourse.Resource(resourceType, baseType.Container, dagger.JSON(srcJSON))
 	ver, err := imageResource.LatestVersion(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("check resource type %s image: %w", resourceType, err)
 	}
-	dir, err := ver.Get(ctx, JSON(paramsJSON))
+	dir, err := ver.Get(ctx, dagger.JSON(paramsJSON))
 	if err != nil {
 		return nil, fmt.Errorf("fetch image: %w", err)
 	}
@@ -390,7 +391,7 @@ type ResourceType struct {
 	Pipeline *Pipeline
 
 	Name      string
-	Container *Container
+	Container *dagger.Container
 	// Name       string      `json:"name"`
 	// Type       string      `json:"type"`
 	// Source     Source      `json:"source"`
@@ -426,10 +427,10 @@ type Job struct {
 	Pipeline *Pipeline
 
 	Name   string
-	Config JSON
+	Config dagger.JSON
 }
 
-func NewJob(conc *Concourse, pl *Pipeline, name string, config JSON) *Job {
+func NewJob(conc *Concourse, pl *Pipeline, name string, config dagger.JSON) *Job {
 	return &Job{
 		Pipeline: pl,
 		Name:     name,
@@ -465,8 +466,8 @@ type Resource struct {
 	Concourse *Concourse
 
 	Name      string
-	Container *Container
-	Source    JSON
+	Container *dagger.Container
+	Source    dagger.JSON
 }
 
 func (m *Pipeline) Resource(name string) *Resource {
@@ -483,7 +484,7 @@ func (m *Pipeline) Resource(name string) *Resource {
 func (r *Resource) Check(
 	ctx context.Context,
 	// Check from this version. If not specified, only the latest version is returned.
-	from JSON, // +optional
+	from dagger.JSON, // +optional
 ) ([]*ResourceVersion, error) {
 	sourceJSON, err := r.Concourse.Interpolate(ctx, string(r.Source))
 	if err != nil {
@@ -499,7 +500,7 @@ func (r *Resource) Check(
 	if err != nil {
 		return nil, err
 	}
-	stdout, err := r.Container.WithExec([]string{"/opt/resource/check"}, ContainerWithExecOpts{
+	stdout, err := r.Container.WithExec([]string{"/opt/resource/check"}, dagger.ContainerWithExecOpts{
 		Stdin: string(reqPayload),
 	}).Stdout(ctx)
 	if err != nil {
@@ -515,13 +516,13 @@ func (r *Resource) Check(
 		if err != nil {
 			return nil, err
 		}
-		versions = append(versions, r.Version(JSON(pl)))
+		versions = append(versions, r.Version(dagger.JSON(pl)))
 	}
 	return versions, nil
 }
 
 // Get a specific version of the resource.
-func (r *Resource) Version(version JSON) *ResourceVersion {
+func (r *Resource) Version(version dagger.JSON) *ResourceVersion {
 	return &ResourceVersion{
 		Resource: r,
 		Version:  version,
@@ -532,10 +533,10 @@ func (r *Resource) Version(version JSON) *ResourceVersion {
 func (r *Resource) Get(
 	ctx context.Context,
 	// The version to fetch.
-	version JSON,
+	version dagger.JSON,
 	// Arbitrary parameters to pass to the resource.
-	params JSON, // +optional
-) (*Directory, error) {
+	params dagger.JSON, // +optional
+) (*dagger.Directory, error) {
 	return r.Version(version).Get(ctx, params)
 }
 
@@ -555,7 +556,7 @@ func (r *Resource) LatestVersion(ctx context.Context) (*ResourceVersion, error) 
 func (r *Resource) Put(
 	ctx context.Context,
 	// Arbitrary parameters to pass to the resource.
-	params JSON, // +optional
+	params dagger.JSON, // +optional
 ) (*ResourceVersion, error) {
 	sourceJSON, err := r.Concourse.Interpolate(ctx, string(r.Source))
 	if err != nil {
@@ -571,7 +572,7 @@ func (r *Resource) Put(
 	if err != nil {
 		return nil, err
 	}
-	stdout, err := r.Container.WithExec([]string{"/opt/resource/out"}, ContainerWithExecOpts{
+	stdout, err := r.Container.WithExec([]string{"/opt/resource/out"}, dagger.ContainerWithExecOpts{
 		Stdin: string(reqPayload),
 	}).Stdout(ctx)
 	if err != nil {
@@ -589,7 +590,7 @@ func (r *Resource) Put(
 // A version of a resource, with optional metadata.
 type ResourceVersion struct {
 	*Resource
-	Version  JSON               `json:"version"`
+	Version  dagger.JSON        `json:"version"`
 	Metadata []ResourceMetadata `json:"metadata"`
 }
 
@@ -597,8 +598,8 @@ type ResourceVersion struct {
 func (r *ResourceVersion) Get(
 	ctx context.Context,
 	// Arbitrary parameters to pass to the resource.
-	params JSON, // +optional
-) (*Directory, error) {
+	params dagger.JSON, // +optional
+) (*dagger.Directory, error) {
 	sourceJSON, err := r.Concourse.Interpolate(ctx, string(r.Source))
 	if err != nil {
 		return nil, fmt.Errorf("interpolate config vars: %w", err)
@@ -620,7 +621,7 @@ func (r *ResourceVersion) Get(
 	}
 	return r.Container.
 			WithDirectory("/resource", dag.Directory()).
-			WithExec([]string{"/opt/resource/in", "/resource"}, ContainerWithExecOpts{
+			WithExec([]string{"/opt/resource/in", "/resource"}, dagger.ContainerWithExecOpts{
 				Stdin: string(reqPayload),
 			}).
 			Directory("/resource"),

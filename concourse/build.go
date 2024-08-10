@@ -1,6 +1,7 @@
 package main
 
 import (
+	"concourse/internal/dagger"
 	"context"
 	"encoding/json"
 	"errors"
@@ -28,12 +29,12 @@ type Build struct {
 }
 
 type BuildState struct {
-	Assets map[string]*Directory
+	Assets map[string]*dagger.Directory
 
 	l sync.Mutex
 }
 
-func (s *BuildState) Asset(name string) (*Directory, bool) {
+func (s *BuildState) Asset(name string) (*dagger.Directory, bool) {
 	s.l.Lock()
 	defer s.l.Unlock()
 	if s.Assets == nil {
@@ -43,11 +44,11 @@ func (s *BuildState) Asset(name string) (*Directory, bool) {
 	return dir, found
 }
 
-func (s *BuildState) StoreAsset(name string, dir *Directory) {
+func (s *BuildState) StoreAsset(name string, dir *dagger.Directory) {
 	s.l.Lock()
 	defer s.l.Unlock()
 	if s.Assets == nil {
-		s.Assets = map[string]*Directory{}
+		s.Assets = map[string]*dagger.Directory{}
 	}
 	s.Assets[name] = dir
 }
@@ -96,7 +97,7 @@ func (build Build) VisitTask(step *atc.TaskStep) error {
 		taskCfg = *step.Config
 	}
 
-	var taskCtr *Container
+	var taskCtr *dagger.Container
 	if taskCfg.ImageResource != nil {
 		taskCtr, err = build.Pipeline.imageResource(ctx, taskCfg.ImageResource.Type, taskCfg.ImageResource.Source, taskCfg.ImageResource.Params)
 		if err != nil {
@@ -120,7 +121,7 @@ func (build Build) VisitTask(step *atc.TaskStep) error {
 	args := append([]string{taskCfg.Run.Path}, taskCfg.Run.Args...)
 	// HACK: this won't run with a TTY, so disable stty
 	taskCtr = taskCtr.WithFile("/usr/bin/stty", taskCtr.File("/bin/true"))
-	taskCtr = taskCtr.WithExec(args, ContainerWithExecOpts{
+	taskCtr = taskCtr.WithExec(args, dagger.ContainerWithExecOpts{
 		SkipEntrypoint:           true, // Concourse doesn't respect entrypoint.
 		InsecureRootCapabilities: step.Privileged,
 	})
@@ -152,7 +153,7 @@ func (build Build) VisitGet(step *atc.GetStep) error {
 			if err != nil {
 				return build.Error(err)
 			}
-			version = resource.Version(JSON(versionJSON))
+			version = resource.Version(dagger.JSON(versionJSON))
 		}
 	}
 	if version == nil {
@@ -166,7 +167,7 @@ func (build Build) VisitGet(step *atc.GetStep) error {
 	if err != nil {
 		return build.Error(err)
 	}
-	dir, err := version.Get(ctx, JSON(paramsJSON))
+	dir, err := version.Get(ctx, dagger.JSON(paramsJSON))
 	if err != nil {
 		return build.Error(err)
 	}
