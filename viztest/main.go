@@ -38,6 +38,13 @@ func (*Viztest) LogStdout() {
 	fmt.Println("Hello, world!")
 }
 
+func (*Viztest) Terminal() *dagger.Container {
+	return dag.Container().
+		From("alpine").
+		WithExec([]string{"apk", "add", "htop", "vim"}).
+		Terminal()
+}
+
 func (*Viztest) PrimaryLines(n int) string {
 	buf := new(strings.Builder)
 	for i := 1; i <= n; i++ {
@@ -120,6 +127,14 @@ func (*Viztest) Echo(ctx context.Context, message string) (string, error) {
 		From("alpine").
 		WithExec([]string{"echo", message}).
 		Stdout(ctx)
+}
+
+func (*Viztest) Uppercase(ctx context.Context, message string) (string, error) {
+	out, err := dag.Container().
+		From("alpine").
+		WithExec([]string{"echo", message}).
+		Stdout(ctx)
+	return strings.ToUpper(out), err
 }
 
 func (*Viztest) SameDiffClients(ctx context.Context, message string) (string, error) {
@@ -219,4 +234,32 @@ func (*Viztest) Pending(ctx context.Context) error {
 		WithExec([]string{"sleep", "1"}).
 		Sync(ctx)
 	return err
+}
+
+func (*Viztest) Colors16(ctx context.Context) (string, error) {
+	src := dag.Git("https://gitlab.com/dwt1/shell-color-scripts").
+		Branch("master").
+		Tree()
+
+	return dag.Container().From("alpine").
+		WithEnvVariable("TERM", "xterm-256color").
+		WithExec([]string{"apk", "add", "bash", "make", "ncurses"}).
+		WithMountedDirectory("/src", src).
+		WithWorkdir("/src").
+		WithExec([]string{"make", "install"}).
+		WithExec([]string{"colorscript", "--all"}).
+		Stdout(ctx)
+}
+
+func (*Viztest) Colors256(ctx context.Context) (string, error) {
+	src := dag.Git("https://gitlab.com/phoneybadger/pokemon-colorscripts.git").
+		Branch("main").
+		Tree()
+	return dag.Container().From("python").
+		WithMountedDirectory("/src", src).
+		WithWorkdir("/src").
+		WithExec([]string{"./install.sh"}).
+		WithEnvVariable("BUST", time.Now().String()).
+		WithExec([]string{"pokemon-colorscripts", "-r", "1"}).
+		Stdout(ctx)
 }
