@@ -14,6 +14,11 @@ type Viztest struct {
 	Num int
 }
 
+// HelloWorld returns the string "Hello, world!"
+func (m *Viztest) HelloWorld() string {
+	return "Hello, world!"
+}
+
 // LogThroughput logs the current time in a tight loop.
 func (m *Viztest) Spam() *dagger.Container {
 	for {
@@ -23,7 +28,7 @@ func (m *Viztest) Spam() *dagger.Container {
 
 // Encapsulate calls a failing function, but ultimately succeeds.
 func (m *Viztest) Encapsulate(ctx context.Context) error {
-	_ = m.Fail(ctx, "1")
+	_ = m.FailLog(ctx)
 	return nil // no error, that's the point
 }
 
@@ -211,12 +216,41 @@ func (*Viztest) Fail(ctx context.Context,
 	return err
 }
 
-func (*Viztest) Service(ctx context.Context) *dagger.Service {
+func (*Viztest) NoExecService() *dagger.Service {
+	return dag.Container().
+		From("redis").
+		WithExposedPort(6379). // TODO: would be great to infer this
+		AsService()
+}
+
+func (*Viztest) ExecService() *dagger.Service {
 	return dag.Container().
 		From("python").
 		WithExposedPort(8000).
+		WithExec([]string{"echo", "im cached for good"}).
+		WithExec([]string{"echo", "im also cached for good"}).
+		WithExec([]string{"echo", "im cached every second:", time.Now().Truncate(time.Second).String()}).
+		WithExec([]string{"sleep", "1"}).
+		WithExec([]string{"echo", "im busted by that buster"}).
 		WithExec([]string{"python", "-m", "http.server"}).
 		AsService()
+}
+
+func (v *Viztest) UseExecService(ctx context.Context) error {
+	_, err := dag.Container().
+		From("alpine").
+		WithServiceBinding("exec-service", v.ExecService()).
+		WithExec([]string{"wget", "http://exec-service:8000"}).
+		Sync(ctx)
+	return err
+}
+
+func (v *Viztest) UseNoExecService(ctx context.Context) (string, error) {
+	return dag.Container().
+		From("redis").
+		WithServiceBinding("redis", v.NoExecService()).
+		WithExec([]string{"redis-cli", "-h", "redis", "ping"}).
+		Stdout(ctx)
 }
 
 func (*Viztest) Pending(ctx context.Context) error {

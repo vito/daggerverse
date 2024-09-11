@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+
+set -e -u
+
+function test() {
+  local status=0
+  reset
+  set -x
+  "$@" || status=$?
+  set +x
+  echo "status=$status"
+  echo "ok?"
+  read
+}
+
+# should print "Hello, world!"
+test dagger-dev call hello-world -E
+
+# should show a nice summary including the root cause of the failure
+test dagger-dev call fail-log -E
+
+# should *not* show any failure, unless you expand the succeeded step
+test dagger-dev call encapsulate -E
+
+# should show FailEffect as failed even though it just returned a container
+# that eventually fails
+test dagger-dev call fail-effect -E
+
+# should show spans before they run, and show sleeps running, and show cached
+# things
+test dagger-dev call pending -E
+
+# should show service logs somewhere reasonable (withExec? asService?)
+test dagger-dev call use-exec-service -E
+
+# should show service logs somewhere reasonable (from? asService?)
+test dagger-dev call use-no-exec-service -E
+
+# should reveal initialize > asModule > withSource > failed build
+test dagger-dev -m broken call broken -E
