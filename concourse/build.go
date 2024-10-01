@@ -122,7 +122,6 @@ func (build Build) VisitTask(step *atc.TaskStep) error {
 	// HACK: this won't run with a TTY, so disable stty
 	taskCtr = taskCtr.WithFile("/usr/bin/stty", taskCtr.File("/bin/true"))
 	taskCtr = taskCtr.WithExec(args, dagger.ContainerWithExecOpts{
-		SkipEntrypoint:           true, // Concourse doesn't respect entrypoint.
 		InsecureRootCapabilities: step.Privileged,
 	})
 
