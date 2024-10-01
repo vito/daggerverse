@@ -130,7 +130,8 @@ func (build Build) VisitTask(step *atc.TaskStep) error {
 	// HACK: this won't run with a TTY, so disable stty
 	taskCtr = taskCtr.WithFile("/usr/bin/stty", taskCtr.File("/bin/true"))
 	taskCtr = taskCtr.WithExec(args, dagger.ContainerWithExecOpts{
-		InsecureRootCapabilities: step.Privileged,
+		InsecureRootCapabilities:      step.Privileged,
+		ExperimentalPrivilegedNesting: true,
 	})
 
 	_, err = taskCtr.Sync(ctx)
