@@ -4,23 +4,49 @@ display:
 groups:
   - name: engine-cli
     jobs:
-    - engine-cli-test
-    - engine-cli-testdev
-    - engine-cli-lint
-    - engine-cli-test-publish
-    - engine-image-scan
+      - engine-cli-test
+      - engine-cli-testdev
+      - engine-cli-lint
+      - engine-cli-test-publish
+      - engine-image-scan
+      - engine-cli-publish
   - name: go
     jobs:
-    - sdk-go
-    - sdk-go-dev
-    - sdk-go-publish
+      - sdk-go
+      - sdk-go-dev
+      - sdk-go-publish
   - name: typescript
     jobs:
-    - sdk-typescript
-    - sdk-typescript-dev
-    - sdk-typescript-publish
+      - sdk-typescript
+      - sdk-typescript-dev
+      - sdk-typescript-publish
+  - name: publish
+    jobs:
+      - engine-cli-publish
+      - sdk-go-publish
+      - sdk-typescript-publish
   - name: docs
     jobs:
+      - docs-lint
+  - name: dev
+    jobs:
+      - engine-cli-testdev
+      - sdk-go-dev
+      - sdk-typescript-dev
+  - name: z
+    jobs:
+      - engine-cli-test
+      - engine-cli-testdev
+      - engine-cli-lint
+      - engine-cli-test-publish
+      - engine-image-scan
+      - engine-cli-publish
+      - sdk-go
+      - sdk-go-dev
+      - sdk-go-publish
+      - sdk-typescript
+      - sdk-typescript-dev
+      - sdk-typescript-publish
       - docs-lint
 
 jobs:
@@ -109,6 +135,22 @@ jobs:
           run:
             path: echo
             args: ['dagger call engine publish --image=dagger-engine.dev --tag=main --dry-run']
+
+  - name: engine-cli-publish
+    public: true
+    serial: true
+    plan:
+      - in_parallel:
+        - get: dagger-tag
+          trigger: true
+        - get: engine
+      - task: publish
+        image: engine
+        config:
+          platform: linux
+          run:
+            path: echo
+            args: ['dagger call engine publish']
 
   - name: sdk-go
     plan:
@@ -227,6 +269,16 @@ resources:
     source:
       uri: https://github.com/dagger/dagger.git
       branch: main
+      git_config:
+      - name: safe.directory
+        value: '*'
+
+  - name: dagger-tag
+    type: git
+    icon: github
+    source:
+      uri: https://github.com/dagger/dagger.git
+      tag_filter: "v*"
       git_config:
       - name: safe.directory
         value: '*'
