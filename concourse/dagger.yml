@@ -1,8 +1,30 @@
 display:
-  background_image: https://framerusercontent.com/images/AIo0hREWPqWBR5BOWE99wfiL7o.png
+  background_image: https://framerusercontent.com/images/QYyUF4v3gzOEDSGZYdBkruNDQ9M.png
+
+groups:
+  - name: engine-cli
+    jobs:
+    - engine-cli-test
+    - engine-cli-testdev
+    - engine-cli-lint
+    - engine-cli-test-publish
+    - engine-image-scan
+  - name: go
+    jobs:
+    - sdk-go
+    - sdk-go-dev
+    - sdk-go-publish
+  - name: typescript
+    jobs:
+    - sdk-typescript
+    - sdk-typescript-dev
+    - sdk-typescript-publish
+  - name: docs
+    jobs:
+      - docs-lint
 
 jobs:
-  - name: test all
+  - name: engine-cli-lint
     public: true
     serial: true
     plan:
@@ -10,20 +32,193 @@ jobs:
         - get: dagger
           trigger: true
         - get: engine
-          trigger: true
-      - task: test-all
+      - task: lint
         image: engine
         config:
           platform: linux
           run:
             path: echo
-            args:
-              - dagger
-              - call
-              - test
-              - all
-              - --race=true
-              - --parallel=16
+            args: ['dagger call scripts lint']
+
+  - name: engine-image-scan
+    public: true
+    serial: true
+    plan:
+      - in_parallel:
+        - get: dagger
+          trigger: true
+        - get: engine
+      - task: scan
+        image: engine
+        config:
+          platform: linux
+          run:
+            path: echo
+            args: ['dagger call engine scan']
+
+  - name: engine-cli-test
+    public: true
+    serial: true
+    plan:
+      - in_parallel:
+        - get: dagger
+          passed: [engine-cli-lint]
+          trigger: true
+        - get: engine
+          passed: [engine-cli-lint]
+      - task: test
+        image: engine
+        config:
+          platform: linux
+          run:
+            path: echo
+            args: ['dagger call test all --race=true --parallel=16']
+
+  - name: engine-cli-testdev
+    public: true
+    serial: true
+    plan:
+      - in_parallel:
+        - get: dagger
+          passed: [engine-cli-lint]
+          trigger: true
+        - get: engine
+          passed: [engine-cli-lint]
+      - task: testdev
+        image: engine
+        config:
+          platform: linux
+          run:
+            path: echo
+            args: ['dagger call test specific --run="TestModule|TestGo|TestPython|TestTypescript|TestElixir|TestPHP|TestContainer" --skip="TestDev" --race=true --parallel=16']
+
+  - name: engine-cli-test-publish
+    public: true
+    serial: true
+    plan:
+      - in_parallel:
+        - get: dagger
+          passed: [engine-cli-lint]
+          trigger: true
+        - get: engine
+          passed: [engine-cli-lint]
+      - task: test-publish
+        image: engine
+        config:
+          platform: linux
+          run:
+            path: echo
+            args: ['dagger call engine publish --image=dagger-engine.dev --tag=main --dry-run']
+
+  - name: sdk-go
+    plan:
+      - in_parallel:
+        - get: sdk-go
+          trigger: true
+        - get: engine
+      - task: check
+        image: engine
+        config:
+          platform: linux
+          run:
+            path: echo
+            args: ['dagger call -q --ref="$GITHUB_REF" --docker-cfg=file:$HOME/.docker/config.json check --targets=sdk/go']
+
+  - name: sdk-go-dev
+    public: true
+    plan:
+      - in_parallel:
+        - get: sdk-go
+          trigger: true
+        - get: dagger
+          trigger: true
+        - get: engine
+      - task: check
+        image: engine
+        config:
+          platform: linux
+          run:
+            path: echo
+            args: ['dagger call -q --ref="$GITHUB_REF" --docker-cfg=file:$HOME/.docker/config.json check --targets=sdk/go']
+
+  - name: sdk-go-publish
+    public: true
+    serial: true
+    plan:
+      - in_parallel:
+        - get: sdk-go-tag
+          trigger: true
+        - get: engine
+      - task: publish
+        image: engine
+        config:
+          platform: linux
+          run:
+            path: echo
+            args: ['dagger call sdk go publish --tag="${{ github.ref_name }}" --github-token=env:RELEASE_DAGGER_CI_TOKEN']
+
+  - name: sdk-typescript
+    plan:
+      - in_parallel:
+        - get: sdk-typescript
+          trigger: true
+        - get: engine
+      - task: check
+        image: engine
+        config:
+          platform: linux
+          run:
+            path: echo
+            args: ['dagger call -q --ref="$GITHUB_REF" --docker-cfg=file:$HOME/.docker/config.json check --targets=sdk/go']
+
+  - name: sdk-typescript-dev
+    public: true
+    plan:
+      - in_parallel:
+        - get: sdk-typescript
+          trigger: true
+        - get: dagger
+          trigger: true
+        - get: engine
+      - task: check
+        image: engine
+        config:
+          platform: linux
+          run:
+            path: echo
+            args: ['dagger call -q --ref="$GITHUB_REF" --docker-cfg=file:$HOME/.docker/config.json check --targets=sdk/go']
+
+  - name: sdk-typescript-publish
+    public: true
+    serial: true
+    plan:
+      - in_parallel:
+        - get: sdk-typescript-tag
+          trigger: true
+        - get: engine
+      - task: publish
+        image: engine
+        config:
+          platform: linux
+          run:
+            path: echo
+            args: ['dagger call sdk typescript publish --tag="${{ github.ref_name }}" --github-token=env:RELEASE_DAGGER_CI_TOKEN']
+
+  - name: docs-lint
+    public: true
+    serial: true
+    plan:
+      - in_parallel:
+        - get: dagger
+          trigger: true
+        - get: engine
+      - task: lint
+        image: engine
+        config:
+          platform: linux
+          run:
+            path: echo
+            args: ['dagger call docs lint']
 
 resources:
   - name: dagger
@@ -32,6 +227,51 @@ resources:
     source:
       uri: https://github.com/dagger/dagger.git
       branch: main
+      git_config:
+      - name: safe.directory
+        value: '*'
+
+  - name: sdk-go
+    type: git
+    icon: github
+    source:
+      uri: https://github.com/dagger/dagger.git
+      branch: main
+      paths: ["sdk/go/**"]
+      git_config:
+      - name: safe.directory
+        value: '*'
+
+  - name: sdk-go-tag
+    type: git
+    icon: github
+    source:
+      uri: https://github.com/dagger/dagger.git
+      tag_filter: "sdk/go/v*"
+      git_config:
+      - name: safe.directory
+        value: '*'
+
+  - name: sdk-typescript
+    type: git
+    icon: github
+    source:
+      uri: https://github.com/dagger/dagger.git
+      branch: main
+      paths: ["sdk/typescript/**"]
+      git_config:
+      - name: safe.directory
+        value: '*'
+
+  - name: sdk-typescript-tag
+    type: git
+    icon: github
+    source:
+      uri: https://github.com/dagger/dagger.git
+      tag_filter: "sdk/typescript/v*"
+      git_config:
+      - name: safe.directory
+        value: '*'
 
   - name: engine
     type: registry-image
@@ -41,5 +281,5 @@ resources:
       tag: v0.13.3
 
 git_config:
-- name: safe.directory
-  value: /tmp/build/get
+  - name: safe.directory
+    value: /tmp/build/get
