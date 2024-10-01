@@ -1,4 +1,5 @@
 ## Assumptions
+
 - Docker running locally
 - Dagger CLI `0.13.3` or newer is installed
 
@@ -12,7 +13,7 @@
 dagger call quickstart up
 ```
 
-Concourse Web UI is now available via <http://localhost:8080> 
+Concourse Web UI is now available via <http://localhost:8080>
 
 ![Concourse in Dagger](concourse.png)
 
@@ -23,6 +24,7 @@ Concourse Web UI is now available via <http://localhost:8080>
 
 1. Download `fly` from <http://localhost:8080/api/v1/cli?arch=amd64&platform=darwin> (bottom right corner)
 2. Add the `concourse.yml` pipeline from this directory (requires DockerHub credentials)
+
 ```sh
 fly login -t dagger -c http://localhost:8080 -u dagger -p dagger
 
@@ -34,6 +36,7 @@ fly set-pipeline -c concourse.yml -p concourse -t dagger \
 
 fly unpause-pipeline -p concourse -t dagger
 ```
+
 3. View this pipeline in the UI <http://localhost:8080/teams/main/pipelines/concourse>
     - Requires login with username `dagger` & password `dagger` <http://localhost:8080/sky/login>
 

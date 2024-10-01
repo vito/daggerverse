@@ -2,7 +2,7 @@ display:
   background_image: https://framerusercontent.com/images/AIo0hREWPqWBR5BOWE99wfiL7o.png
 
 jobs:
-  - name: docs
+  - name: test all
     public: true
     serial: true
     plan:
@@ -15,11 +15,6 @@ jobs:
         image: engine
         config:
           platform: linux
-          image_resource:
-            type: registry-image
-            source:
-              repository: registry.dagger.io/engine
-              tag: v0.13.3
           run:
             path: echo
             args:
@@ -44,3 +39,7 @@ resources:
     source:
       repository: registry.dagger.io/engine
       tag: v0.13.3
+
+git_config:
+- name: safe.directory
+  value: /tmp/build/get
