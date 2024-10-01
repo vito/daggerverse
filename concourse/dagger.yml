@@ -58,6 +58,8 @@ jobs:
         - get: dagger
           trigger: true
         - get: engine
+        - get: interval
+          trigger: true
       - task: lint
         image: engine
         config:
@@ -74,6 +76,8 @@ jobs:
         - get: dagger
           trigger: true
         - get: engine
+        - get: interval
+          trigger: true
       - task: scan
         image: engine
         config:
@@ -92,6 +96,9 @@ jobs:
           trigger: true
         - get: engine
           passed: [engine-cli-lint]
+        - get: interval
+          passed: [engine-cli-lint]
+          trigger: true
       - task: test
         image: engine
         config:
@@ -110,6 +117,9 @@ jobs:
           trigger: true
         - get: engine
           passed: [engine-cli-lint]
+        - get: interval
+          passed: [engine-cli-lint]
+          trigger: true
       - task: testdev
         image: engine
         config:
@@ -128,6 +138,9 @@ jobs:
           trigger: true
         - get: engine
           passed: [engine-cli-lint]
+        - get: interval
+          passed: [engine-cli-lint]
+          trigger: true
       - task: test-publish
         image: engine
         config:
@@ -144,6 +157,8 @@ jobs:
         - get: dagger-tag
           trigger: true
         - get: engine
+        - get: interval
+          trigger: true
       - task: publish
         image: engine
         config:
@@ -158,6 +173,8 @@ jobs:
         - get: sdk-go
           trigger: true
         - get: engine
+        - get: interval
+          trigger: true
       - task: check
         image: engine
         config:
@@ -175,6 +192,8 @@ jobs:
         - get: dagger
           trigger: true
         - get: engine
+        - get: interval
+          trigger: true
       - task: check
         image: engine
         config:
@@ -191,6 +210,8 @@ jobs:
         - get: sdk-go-tag
           trigger: true
         - get: engine
+        - get: interval
+          trigger: true
       - task: publish
         image: engine
         config:
@@ -205,6 +226,8 @@ jobs:
         - get: sdk-typescript
           trigger: true
         - get: engine
+        - get: interval
+          trigger: true
       - task: check
         image: engine
         config:
@@ -222,6 +245,8 @@ jobs:
         - get: dagger
           trigger: true
         - get: engine
+        - get: interval
+          trigger: true
       - task: check
         image: engine
         config:
@@ -238,6 +263,8 @@ jobs:
         - get: sdk-typescript-tag
           trigger: true
         - get: engine
+        - get: interval
+          trigger: true
       - task: publish
         image: engine
         config:
@@ -254,6 +281,8 @@ jobs:
         - get: dagger
           trigger: true
         - get: engine
+        - get: interval
+          trigger: true
       - task: lint
         image: engine
         config:
@@ -331,6 +360,11 @@ resources:
     source:
       repository: registry.dagger.io/engine
       tag: v0.13.3
+
+  - name: interval
+    type: time
+    source:
+      interval: 1m
 
 git_config:
   - name: safe.directory
