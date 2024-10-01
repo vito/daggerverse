@@ -1,0 +1,46 @@
+display:
+  background_image: https://framerusercontent.com/images/AIo0hREWPqWBR5BOWE99wfiL7o.png
+
+jobs:
+  - name: docs
+    public: true
+    serial: true
+    plan:
+      - in_parallel:
+        - get: dagger
+          trigger: true
+        - get: engine
+          trigger: true
+      - task: test-all
+        image: engine
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: registry.dagger.io/engine
+              tag: v0.13.3
+          run:
+            path: echo
+            args:
+              - dagger
+              - call
+              - test
+              - all
+              - --race=true
+              - --parallel=16
+
+resources:
+  - name: dagger
+    type: git
+    icon: github
+    source:
+      uri: https://github.com/dagger/dagger.git
+      branch: main
+
+  - name: engine
+    type: registry-image
+    icon: docker
+    source:
+      repository: registry.dagger.io/engine
+      tag: v0.13.3
