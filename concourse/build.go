@@ -103,8 +103,16 @@ func (build Build) VisitTask(step *atc.TaskStep) error {
 		if err != nil {
 			return build.Error(err)
 		}
+	} else if step.ImageArtifactName != "" {
+		dir := build.State.Assets[step.ImageArtifactName]
+		taskCtr, err = build.Pipeline.fetchedImage(ctx, dir)
+		if err != nil {
+			return build.Error(err)
+		}
 	} else if taskCfg.RootfsURI != "" {
 		return build.Error(fmt.Errorf("rootfs uri not supported"))
+	} else {
+		return build.Error(fmt.Errorf("no image specified"))
 	}
 
 	for _, input := range taskCfg.Inputs {

@@ -363,6 +363,10 @@ func (pl *Pipeline) imageResource(ctx context.Context, resourceType string, sour
 	if err != nil {
 		return nil, fmt.Errorf("fetch image: %w", err)
 	}
+	return pl.fetchedImage(ctx, dir)
+}
+
+func (pl *Pipeline) fetchedImage(ctx context.Context, dir *dagger.Directory) (*dagger.Container, error) {
 	ctr := dag.Container().WithRootfs(dir.Directory("rootfs"))
 	metadataJSON, err := dir.File("metadata.json").Contents(ctx)
 	if err != nil {
