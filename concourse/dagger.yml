@@ -5,6 +5,10 @@ groups:
   - name: docs
     jobs:
       - docs-lint
+  - name: helm
+    jobs:
+      - helm-test
+      - helm-publish
   - name: engine-cli
     jobs:
       - engine-cli-test
@@ -30,6 +34,7 @@ groups:
       - sdk-python-publish
   - name: publish
     jobs:
+      - helm-publish
       - engine-cli-publish
       - sdk-go-publish
       - sdk-typescript-publish
@@ -49,6 +54,8 @@ groups:
   - name: z
     jobs:
       - docs-lint
+      - helm-test
+      - helm-publish
       - engine-cli-test
       - engine-cli-testdev
       - engine-cli-lint
@@ -89,6 +96,56 @@ jobs:
           run:
             path: echo
             args: ['dagger call docs lint']
+
+  - name: helm-test
+    public: true
+    serial: true
+    plan:
+      - in_parallel:
+        - get: dagger-helm
+          trigger: true
+        - get: engine
+        - get: interval
+          trigger: true
+      - task: lint
+        image: engine
+        config:
+          platform: linux
+          run:
+            path: echo
+            args: ['dagger helm lint']
+      - task: test
+        image: engine
+        config:
+          platform: linux
+          run:
+            path: echo
+            args: ['dagger helm test']
+      - task: test-publish
+        image: engine
+        config:
+          platform: linux
+          run:
+            path: echo
+            args: ['dagger helm test-publish --dry-run=true --tag=main']
+
+  - name: helm-publish
+    public: true
+    serial: true
+    plan:
+      - in_parallel:
+        - get: dagger-helm-tag
+          trigger: true
+        - get: engine
+        - get: interval
+          trigger: true
+      - task: publish
+        image: engine
+        config:
+          platform: linux
+          run:
+            path: echo
+            args: ['dagger helm publish']
 
   - name: engine-cli-lint
     public: true
@@ -517,6 +574,27 @@ resources:
     source:
       uri: https://github.com/dagger/dagger.git
       tag_filter: "v*"
+      git_config:
+      - name: safe.directory
+        value: '*'
+
+  - name: dagger-helm
+    type: git
+    icon: github
+    source:
+      uri: https://github.com/dagger/dagger.git
+      branch: main
+      paths: ["helm/dagger/**"]
+      git_config:
+      - name: safe.directory
+        value: '*'
+
+  - name: dagger-helm-tag
+    type: git
+    icon: github
+    source:
+      uri: https://github.com/dagger/dagger.git
+      tag_filter: "helm/chart/v*"
       git_config:
       - name: safe.directory
         value: '*'
