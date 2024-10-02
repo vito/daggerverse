@@ -32,6 +32,26 @@ groups:
       - sdk-python
       - sdk-python-dev
       - sdk-python-publish
+  - name: rust
+    jobs:
+      - sdk-rust
+      - sdk-rust-dev
+      - sdk-rust-publish
+  - name: php
+    jobs:
+      - sdk-php
+      - sdk-php-dev
+      - sdk-php-publish
+  - name: elixir
+    jobs:
+      - sdk-elixir
+      - sdk-elixir-dev
+      - sdk-elixir-publish
+  - name: java
+    jobs:
+      - sdk-java
+      - sdk-java-dev
+      - sdk-java-publish
   - name: publish
     jobs:
       - helm-publish
@@ -71,6 +91,18 @@ groups:
       - sdk-python
       - sdk-python-dev
       - sdk-python-publish
+      - sdk-rust
+      - sdk-rust-dev
+      - sdk-rust-publish
+      - sdk-php
+      - sdk-php-dev
+      - sdk-php-publish
+      - sdk-elixir
+      - sdk-elixir-dev
+      - sdk-elixir-publish
+      - sdk-java
+      - sdk-java-dev
+      - sdk-java-publish
       - test-provision-go-macos
       - test-provision-python-macos
       - test-provision-typescript-macos
@@ -423,6 +455,218 @@ jobs:
             path: echo
             args: ['dagger call sdk python publish --tag="${{ github.ref_name }}" --github-token=env:RELEASE_DAGGER_CI_TOKEN']
 
+  - name: sdk-rust
+    plan:
+      - in_parallel:
+        - get: sdk-rust
+          trigger: true
+        - get: engine
+        - get: interval
+          trigger: true
+      - task: check
+        image: engine
+        config:
+          platform: linux
+          run:
+            path: echo
+            args: ['dagger call -q --ref="$GITHUB_REF" --docker-cfg=file:$HOME/.docker/config.json check --targets=sdk/rust']
+
+  - name: sdk-rust-dev
+    public: true
+    plan:
+      - in_parallel:
+        - get: sdk-rust
+          trigger: true
+        - get: dagger
+          trigger: true
+        - get: engine
+        - get: interval
+          trigger: true
+      - task: check
+        image: engine
+        config:
+          platform: linux
+          run:
+            path: echo
+            args: ['dagger call -q --ref="$GITHUB_REF" --docker-cfg=file:$HOME/.docker/config.json check --targets=sdk/rust']
+
+  - name: sdk-rust-publish
+    public: true
+    serial: true
+    plan:
+      - in_parallel:
+        - get: sdk-rust-tag
+          trigger: true
+        - get: engine
+        - get: interval
+          trigger: true
+      - task: publish
+        image: engine
+        config:
+          platform: linux
+          run:
+            path: echo
+            args: ['dagger call sdk rust publish --tag="${{ github.ref_name }}" --github-token=env:RELEASE_DAGGER_CI_TOKEN']
+
+  - name: sdk-php
+    plan:
+      - in_parallel:
+        - get: sdk-php
+          trigger: true
+        - get: engine
+        - get: interval
+          trigger: true
+      - task: check
+        image: engine
+        config:
+          platform: linux
+          run:
+            path: echo
+            args: ['dagger call -q --ref="$GITHUB_REF" --docker-cfg=file:$HOME/.docker/config.json check --targets=sdk/php']
+
+  - name: sdk-php-dev
+    public: true
+    plan:
+      - in_parallel:
+        - get: sdk-php
+          trigger: true
+        - get: dagger
+          trigger: true
+        - get: engine
+        - get: interval
+          trigger: true
+      - task: check
+        image: engine
+        config:
+          platform: linux
+          run:
+            path: echo
+            args: ['dagger call -q --ref="$GITHUB_REF" --docker-cfg=file:$HOME/.docker/config.json check --targets=sdk/php']
+
+  - name: sdk-php-publish
+    public: true
+    serial: true
+    plan:
+      - in_parallel:
+        - get: sdk-php-tag
+          trigger: true
+        - get: engine
+        - get: interval
+          trigger: true
+      - task: publish
+        image: engine
+        config:
+          platform: linux
+          run:
+            path: echo
+            args: ['dagger call sdk php publish --tag="${{ github.ref_name }}" --github-token=env:RELEASE_DAGGER_CI_TOKEN']
+
+  - name: sdk-elixir
+    plan:
+      - in_parallel:
+        - get: sdk-elixir
+          trigger: true
+        - get: engine
+        - get: interval
+          trigger: true
+      - task: check
+        image: engine
+        config:
+          platform: linux
+          run:
+            path: echo
+            args: ['dagger call -q --ref="$GITHUB_REF" --docker-cfg=file:$HOME/.docker/config.json check --targets=sdk/elixir']
+
+  - name: sdk-elixir-dev
+    public: true
+    plan:
+      - in_parallel:
+        - get: sdk-elixir
+          trigger: true
+        - get: dagger
+          trigger: true
+        - get: engine
+        - get: interval
+          trigger: true
+      - task: check
+        image: engine
+        config:
+          platform: linux
+          run:
+            path: echo
+            args: ['dagger call -q --ref="$GITHUB_REF" --docker-cfg=file:$HOME/.docker/config.json check --targets=sdk/elixir']
+
+  - name: sdk-elixir-publish
+    public: true
+    serial: true
+    plan:
+      - in_parallel:
+        - get: sdk-elixir-tag
+          trigger: true
+        - get: engine
+        - get: interval
+          trigger: true
+      - task: publish
+        image: engine
+        config:
+          platform: linux
+          run:
+            path: echo
+            args: ['dagger call sdk elixir publish --tag="${{ github.ref_name }}" --github-token=env:RELEASE_DAGGER_CI_TOKEN']
+
+  - name: sdk-java
+    plan:
+      - in_parallel:
+        - get: sdk-java
+          trigger: true
+        - get: engine
+        - get: interval
+          trigger: true
+      - task: check
+        image: engine
+        config:
+          platform: linux
+          run:
+            path: echo
+            args: ['dagger call -q --ref="$GITHUB_REF" --docker-cfg=file:$HOME/.docker/config.json check --targets=sdk/java']
+
+  - name: sdk-java-dev
+    public: true
+    plan:
+      - in_parallel:
+        - get: sdk-java
+          trigger: true
+        - get: dagger
+          trigger: true
+        - get: engine
+        - get: interval
+          trigger: true
+      - task: check
+        image: engine
+        config:
+          platform: linux
+          run:
+            path: echo
+            args: ['dagger call -q --ref="$GITHUB_REF" --docker-cfg=file:$HOME/.docker/config.json check --targets=sdk/java']
+
+  - name: sdk-java-publish
+    public: true
+    serial: true
+    plan:
+      - in_parallel:
+        - get: sdk-java-tag
+          trigger: true
+        - get: engine
+        - get: interval
+          trigger: true
+      - task: publish
+        image: engine
+        config:
+          platform: linux
+          run:
+            path: echo
+            args: ['dagger call sdk java publish --tag="${{ github.ref_name }}" --github-token=env:RELEASE_DAGGER_CI_TOKEN']
+
   - name: test-provision-go-linux
     public: true
     serial: true
@@ -651,7 +895,6 @@ resources:
       git_config:
       - name: safe.directory
         value: '*'
-
   - name: sdk-python-tag
     type: git
     icon: github
@@ -661,7 +904,82 @@ resources:
       git_config:
       - name: safe.directory
         value: '*'
-
+  - name: sdk-rust
+    type: git
+    icon: github
+    source:
+      uri: https://github.com/dagger/dagger.git
+      branch: main
+      paths: ["sdk/rust/**"]
+      git_config:
+      - name: safe.directory
+        value: '*'
+  - name: sdk-rust-tag
+    type: git
+    icon: github
+    source:
+      uri: https://github.com/dagger/dagger.git
+      tag_filter: "sdk/rust/v*"
+      git_config:
+      - name: safe.directory
+        value: '*'
+  - name: sdk-php
+    type: git
+    icon: github
+    source:
+      uri: https://github.com/dagger/dagger.git
+      branch: main
+      paths: ["sdk/php/**"]
+      git_config:
+      - name: safe.directory
+        value: '*'
+  - name: sdk-php-tag
+    type: git
+    icon: github
+    source:
+      uri: https://github.com/dagger/dagger.git
+      tag_filter: "sdk/php/v*"
+      git_config:
+      - name: safe.directory
+        value: '*'
+  - name: sdk-elixir
+    type: git
+    icon: github
+    source:
+      uri: https://github.com/dagger/dagger.git
+      branch: main
+      paths: ["sdk/elixir/**"]
+      git_config:
+      - name: safe.directory
+        value: '*'
+  - name: sdk-elixir-tag
+    type: git
+    icon: github
+    source:
+      uri: https://github.com/dagger/dagger.git
+      tag_filter: "sdk/elixir/v*"
+      git_config:
+      - name: safe.directory
+        value: '*'
+  - name: sdk-java
+    type: git
+    icon: github
+    source:
+      uri: https://github.com/dagger/dagger.git
+      branch: main
+      paths: ["sdk/java/**"]
+      git_config:
+      - name: safe.directory
+        value: '*'
+  - name: sdk-java-tag
+    type: git
+    icon: github
+    source:
+      uri: https://github.com/dagger/dagger.git
+      tag_filter: "sdk/java/v*"
+      git_config:
+      - name: safe.directory
+        value: '*'
   - name: engine
     type: registry-image
     icon: docker
