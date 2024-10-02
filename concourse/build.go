@@ -2,6 +2,7 @@ package main
 
 import (
 	"concourse/internal/dagger"
+	"concourse/internal/telemetry"
 	"context"
 	"encoding/json"
 	"errors"
@@ -23,6 +24,9 @@ type Build struct {
 	Concourse *Concourse
 
 	Pipeline *Pipeline
+
+	// Input versions resolved via the job's passed: constraints.
+	Inputs map[string]*ResourceVersion
 
 	// Runtime state modified as steps are executed.
 	State *BuildState
@@ -68,9 +72,10 @@ func (pl *Pipeline) build(ctx context.Context) Build {
 }
 
 // VisitTask calls the OnTask hook if configured.
-func (build Build) VisitTask(step *atc.TaskStep) error {
+func (build Build) VisitTask(step *atc.TaskStep) (rerr error) {
 	ctx, span := Tracer().Start(build.Ctx, "task: "+step.Name)
-	defer span.End()
+	defer telemetry.End(span, func() error { return rerr })
+
 	build.Ctx = ctx
 
 	var err error
@@ -146,14 +151,15 @@ func (build Build) Error(err error) error {
 }
 
 // VisitGet calls the OnGet hook if configured.
-func (build Build) VisitGet(step *atc.GetStep) error {
+func (build Build) VisitGet(step *atc.GetStep) (rerr error) {
 	ctx, span := Tracer().Start(build.Ctx, "get: "+step.Name)
-	defer span.End()
+	defer telemetry.End(span, func() error { return rerr })
 	build.Ctx = ctx
 	resource := build.Pipeline.Resource(step.ResourceName())
-	var version *ResourceVersion
-	if step.Version != nil {
+	version := build.Inputs[step.Name]
+	if version == nil && step.Version != nil {
 		if step.Version.Latest {
+			// nothing to do
 		} else if step.Version.Every {
 			return build.Error(fmt.Errorf("version: every not supported"))
 		} else if step.Version.Pinned != nil {
@@ -185,41 +191,41 @@ func (build Build) VisitGet(step *atc.GetStep) error {
 }
 
 // VisitPut calls the OnPut hook if configured.
-func (build Build) VisitPut(step *atc.PutStep) error {
+func (build Build) VisitPut(step *atc.PutStep) (rerr error) {
 	ctx, span := Tracer().Start(build.Ctx, "put: "+step.Name)
-	defer span.End()
+	defer telemetry.End(span, func() error { return rerr })
 	build.Ctx = ctx
 	return nil
 }
 
 // VisitRun calls the OnRun hook if configured.
-func (build Build) VisitRun(step *atc.RunStep) error {
+func (build Build) VisitRun(step *atc.RunStep) (rerr error) {
 	ctx, span := Tracer().Start(build.Ctx, "run: "+step.Message)
-	defer span.End()
+	defer telemetry.End(span, func() error { return rerr })
 	build.Ctx = ctx
 	return nil
 }
 
 // VisitSetPipeline calls the OnSetPipeline hook if configured.
-func (build Build) VisitSetPipeline(step *atc.SetPipelineStep) error {
+func (build Build) VisitSetPipeline(step *atc.SetPipelineStep) (rerr error) {
 	ctx, span := Tracer().Start(build.Ctx, "pipeline: "+step.Name)
-	defer span.End()
+	defer telemetry.End(span, func() error { return rerr })
 	build.Ctx = ctx
 	return nil
 }
 
 // VisitLoadVar calls the OnLoadVar hook if configured.
-func (build Build) VisitLoadVar(step *atc.LoadVarStep) error {
+func (build Build) VisitLoadVar(step *atc.LoadVarStep) (rerr error) {
 	ctx, span := Tracer().Start(build.Ctx, "load_var: "+step.Name)
-	defer span.End()
+	defer telemetry.End(span, func() error { return rerr })
 	build.Ctx = ctx
 	return nil
 }
 
-func (build Build) VisitTry(step *atc.TryStep) error {
+func (build Build) VisitTry(step *atc.TryStep) (rerr error) {
 	// not worth the nesting
 	// ctx, span := Tracer().Start(build.Ctx, "try")
-	// defer span.End()
+	// defer telemetry.End(span, func() error { return rerr })
 	// build.Ctx = ctx
 	if err := step.Step.Config.Visit(build); err != nil {
 		trace.SpanFromContext(build.Ctx).
@@ -229,10 +235,10 @@ func (build Build) VisitTry(step *atc.TryStep) error {
 	return nil
 }
 
-func (build Build) VisitDo(step *atc.DoStep) error {
+func (build Build) VisitDo(step *atc.DoStep) (rerr error) {
 	// not worth the nesting
 	// ctx, span := Tracer().Start(build.Ctx, "do")
-	// defer span.End()
+	// defer telemetry.End(span, func() error { return rerr })
 	// build.Ctx = ctx
 
 	for _, sub := range step.Steps {
@@ -245,10 +251,10 @@ func (build Build) VisitDo(step *atc.DoStep) error {
 	return nil
 }
 
-func (build Build) VisitInParallel(step *atc.InParallelStep) error {
+func (build Build) VisitInParallel(step *atc.InParallelStep) (rerr error) {
 	// not worth the noise, the spans already show that they're parallel
 	// ctx, span := Tracer().Start(build.Ctx, "in_parallel")
-	// defer span.End()
+	// defer telemetry.End(span, func() error { return rerr })
 	// build.Ctx = ctx
 
 	subBuild := build
@@ -269,26 +275,26 @@ func (build Build) VisitInParallel(step *atc.InParallelStep) error {
 	return eg.Wait()
 }
 
-func (build Build) VisitAcross(step *atc.AcrossStep) error {
+func (build Build) VisitAcross(step *atc.AcrossStep) (rerr error) {
 	ctx, span := Tracer().Start(build.Ctx, "across")
-	defer span.End()
+	defer telemetry.End(span, func() error { return rerr })
 	build.Ctx = ctx
 
 	return step.Step.Visit(build)
 }
 
-func (build Build) VisitTimeout(step *atc.TimeoutStep) error {
+func (build Build) VisitTimeout(step *atc.TimeoutStep) (rerr error) {
 	ctx, span := Tracer().Start(build.Ctx, "timeout")
-	defer span.End()
+	defer telemetry.End(span, func() error { return rerr })
 	build.Ctx = ctx
 
 	// TODO
 	return step.Step.Visit(build)
 }
 
-func (build Build) VisitRetry(step *atc.RetryStep) error {
+func (build Build) VisitRetry(step *atc.RetryStep) (rerr error) {
 	ctx, span := Tracer().Start(build.Ctx, "retry")
-	defer span.End()
+	defer telemetry.End(span, func() error { return rerr })
 	build.Ctx = ctx
 
 	// TODO
@@ -304,15 +310,15 @@ func (build Build) VisitOnSuccess(step *atc.OnSuccessStep) error {
 	return step.Hook.Config.Visit(build)
 }
 
-func (build Build) VisitOnFailure(step *atc.OnFailureStep) error {
+func (build Build) VisitOnFailure(step *atc.OnFailureStep) (rerr error) {
 	// ctx, span := Tracer().Start(build.Ctx, "on_failure")
-	// defer span.End()
+	// defer telemetry.End(span, func() error { return rerr })
 	// build.Ctx = ctx
 
 	err := step.Step.Visit(build)
 	if err != nil {
 		ctx, span := Tracer().Start(build.Ctx, "on_failure")
-		defer span.End()
+		defer telemetry.End(span, func() error { return rerr })
 		build.Ctx = ctx
 		return errors.Join(err, step.Hook.Config.Visit(build))
 	}
@@ -320,12 +326,12 @@ func (build Build) VisitOnFailure(step *atc.OnFailureStep) error {
 	return nil
 }
 
-func (build Build) VisitOnAbort(step *atc.OnAbortStep) error {
+func (build Build) VisitOnAbort(step *atc.OnAbortStep) (rerr error) {
 	err := step.Step.Visit(build)
 
 	if build.Ctx.Err() != nil {
 		ctx, span := Tracer().Start(build.Ctx, "on_abort")
-		defer span.End()
+		defer telemetry.End(span, func() error { return rerr })
 		build.Ctx = ctx
 		return errors.Join(err, step.Hook.Config.Visit(build))
 	}
@@ -333,11 +339,11 @@ func (build Build) VisitOnAbort(step *atc.OnAbortStep) error {
 	return err
 }
 
-func (build Build) VisitOnError(step *atc.OnErrorStep) error {
+func (build Build) VisitOnError(step *atc.OnErrorStep) (rerr error) {
 	err := step.Step.Visit(build)
 	if err != nil {
 		ctx, span := Tracer().Start(build.Ctx, "on_error")
-		defer span.End()
+		defer telemetry.End(span, func() error { return rerr })
 		build.Ctx = ctx
 		// TODO no distinction from failure?
 		return step.Hook.Config.Visit(build)
@@ -349,7 +355,7 @@ func (build Build) VisitOnError(step *atc.OnErrorStep) error {
 func (build Build) VisitEnsure(step *atc.EnsureStep) (rerr error) {
 	defer func() {
 		ctx, span := Tracer().Start(build.Ctx, "ensure")
-		defer span.End()
+		defer telemetry.End(span, func() error { return rerr })
 		build.Ctx = ctx
 		rerr = errors.Join(rerr, step.Hook.Config.Visit(build))
 	}()

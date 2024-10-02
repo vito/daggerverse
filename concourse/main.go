@@ -4,13 +4,14 @@ package main
 
 import (
 	"concourse/internal/dagger"
+	"concourse/internal/telemetry"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/concourse/concourse/atc"
 	"github.com/concourse/concourse/atc/configvalidate"
@@ -205,13 +206,6 @@ func (m Concourse) WithVar(name string, value dagger.JSON) *Concourse {
 	return &m
 }
 
-type Pipeline struct {
-	Concourse     *Concourse
-	ResourceTypes []ResourceType
-	Resources     []Resource
-	Jobs          []Job // +private
-}
-
 func (m *Concourse) Interpolate(ctx context.Context, config string) (string, error) {
 	staticVars := vars.StaticVariables{}
 	for _, secret := range m.SecretVars {
@@ -283,14 +277,13 @@ func (m *Concourse) LoadPipeline(ctx context.Context, configFile *dagger.File) (
 	}
 	warnings, errMsgs := configvalidate.Validate(cfg)
 	for _, warning := range warnings {
-		fmt.Fprintf(os.Stderr, "WARNING: %s\n", warning.Message)
+		fmt.Fprintln(os.Stderr, "WARNING:", warning.Message)
 	}
 	if len(errMsgs) > 0 {
-		var errs error
 		for _, e := range errMsgs {
-			errs = errors.Join(errs, errors.New(e))
+			fmt.Fprintln(os.Stderr, "ERROR:", e)
 		}
-		return nil, fmt.Errorf("invalid pipeline: %w", errs)
+		return nil, fmt.Errorf("invalid pipeline")
 	}
 
 	pipeline := &Pipeline{
@@ -462,18 +455,6 @@ func (job *Job) Run(ctx context.Context) error {
 	return step.Visit(build)
 }
 
-// A resource represents an external versioned asset to be published or
-// consumed by your pipeline.
-type Resource struct {
-	// Must be nil when installed onto a Pipeline.
-	// +private
-	Concourse *Concourse
-
-	Name      string
-	Container *dagger.Container
-	Source    dagger.JSON
-}
-
 func (m *Pipeline) Resource(name string) *Resource {
 	for _, rt := range m.Resources {
 		if rt.Name == name {
@@ -484,12 +465,17 @@ func (m *Pipeline) Resource(name string) *Resource {
 	return nil
 }
 
+const checkInterval = time.Minute
+
 // Check for new versions of a resource.
 func (r *Resource) Check(
 	ctx context.Context,
 	// Check from this version. If not specified, only the latest version is returned.
 	from dagger.JSON, // +optional
-) ([]*ResourceVersion, error) {
+) (vs []*ResourceVersion, rerr error) {
+	ctx, span := Tracer().Start(ctx, "check: "+r.Name)
+	defer telemetry.End(span, func() error { return rerr })
+
 	sourceJSON, err := r.Concourse.Interpolate(ctx, string(r.Source))
 	if err != nil {
 		return nil, fmt.Errorf("interpolate resource vars: %w", err)
@@ -504,7 +490,8 @@ func (r *Resource) Check(
 	if err != nil {
 		return nil, err
 	}
-	stdout, err := r.Container.WithExec([]string{"/opt/resource/check"}, dagger.ContainerWithExecOpts{
+	ctr := r.Container.WithEnvVariable("NOW", time.Now().Truncate(checkInterval).String())
+	stdout, err := ctr.WithExec([]string{"/opt/resource/check"}, dagger.ContainerWithExecOpts{
 		Stdin: string(reqPayload),
 	}).Stdout(ctx)
 	if err != nil {

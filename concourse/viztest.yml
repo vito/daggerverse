@@ -1,0 +1,56 @@
+resources:
+- name: dagger
+  type: git
+  source:
+    uri: https://github.com/vito/dagger
+    branch: hackathon
+
+- name: engine
+  type: registry-image
+  source:
+    repository: registry.dagger.io/engine
+
+jobs:
+- name: hello
+  plan:
+  - get: dagger
+  - get: engine
+  - task: hello
+    image: engine
+    config:
+      platform: linux
+      inputs:
+      - name: dagger
+      run:
+        path: dagger
+        args: [call, -m, dagger/dagql/idtui/viztest, hello-world]
+
+- name: docker-build
+  plan:
+  - get: engine
+  - get: dagger
+  - task: docker-build
+    image: engine
+    config:
+      platform: linux
+      inputs:
+      - name: dagger
+      run:
+        path: dagger
+        args: [call, -m, dagger/dagql/idtui/viztest, docker-build]
+
+- name: pending
+  plan:
+  - get: engine
+    passed: [hello, docker-build]
+  - get: dagger
+    passed: [hello, docker-build]
+  - task: pending
+    image: engine
+    config:
+      platform: linux
+      inputs:
+      - name: dagger
+      run:
+        path: dagger
+        args: [call, -m, dagger/dagql/idtui/viztest, pending]
