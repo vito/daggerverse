@@ -59,6 +59,10 @@ groups:
       - sdk-go-publish
       - sdk-typescript-publish
       - sdk-python-publish
+      - sdk-elixir-publish
+      - sdk-rust-publish
+      - sdk-java-publish
+      - sdk-php-publish
       - test-provision-go-macos
       - test-provision-python-macos
       - test-provision-typescript-macos
@@ -71,6 +75,10 @@ groups:
       - sdk-go-dev
       - sdk-typescript-dev
       - sdk-python-dev
+      - sdk-rust-dev
+      - sdk-java-dev
+      - sdk-php-dev
+      - sdk-elixir-dev
   - name: z
     jobs:
       - docs-lint
