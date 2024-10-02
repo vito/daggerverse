@@ -28,18 +28,14 @@ Concourse Web UI is now available via <http://localhost:8080>
 ```sh
 fly login -t dagger -c http://localhost:8080 -u dagger -p dagger
 
-export DOCKER_USERNAME=user
-export DOCKER_PASSWORD=pass
-fly set-pipeline -c concourse.yml -p concourse -t dagger \
-    --var "docker.username=$DOCKER_USERNAME" \
-    --var "docker.password=$DOCKER_PASSWORD"
+fly set-pipeline -c dagger.yml -p dagger -t dagger
 
-fly unpause-pipeline -p concourse -t dagger
+fly unpause-pipeline -p dagger -t dagger
 ```
 
-3. View this pipeline in the UI <http://localhost:8080/teams/main/pipelines/concourse>
+3. View this pipeline in the UI <http://localhost:8080/teams/main/pipelines/dagger?group=z>
     - Requires login with username `dagger` & password `dagger` <http://localhost:8080/sky/login>
 
 This is what the end-result will look like:
 
-![Concourse pipeline running in Concourse in Dagger](concourse-pipeline.png)
+![Dagger pipeline running in Concourse in Dagger](dagger-pipeline.png)
