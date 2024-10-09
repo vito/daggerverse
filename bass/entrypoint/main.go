@@ -57,25 +57,56 @@ func main() {
 	ctx, runs := bass.TrackRuns(ctx)
 	defer func() { _ = runs.StopAndWait() }()
 
+	pool, err := runtimes.NewPool(ctx, &bass.Config{
+		Runtimes: []bass.RuntimeConfig{
+			{
+				Platform: bass.LinuxPlatform,
+				Runtime:  DaggerName,
+			},
+		},
+	})
+	if err != nil {
+		cli.WriteError(ctx, err)
+		os.Exit(2)
+		return
+	}
+
+	ctx = bass.WithRuntimePool(ctx, pool)
+
+	if len(os.Args) == 1 {
+		scope := bass.NewRunScope(bass.Ground, bass.RunState{
+			Dir:    bass.NewHostDir("."),
+			Stdin:  bass.Stdin,
+			Stdout: bass.Stdout,
+			Env:    bass.ImportSystemEnv(),
+		})
+
+		if err := cli.Repl(ctx, scope); err != nil {
+			cli.WriteError(ctx, err)
+			os.Exit(2)
+		}
+		return
+	}
+
 	fnCall := dag.CurrentFunctionCall()
 	parentName, err := fnCall.ParentName(ctx)
 	if err != nil {
-		fmt.Println(err.Error())
+		cli.WriteError(ctx, err)
 		os.Exit(2)
 	}
 	fnName, err := fnCall.Name(ctx)
 	if err != nil {
-		fmt.Println(err.Error())
+		cli.WriteError(ctx, err)
 		os.Exit(2)
 	}
 	parentJson, err := fnCall.Parent(ctx)
 	if err != nil {
-		fmt.Println(err.Error())
+		cli.WriteError(ctx, err)
 		os.Exit(2)
 	}
 	fnArgs, err := fnCall.InputArgs(ctx)
 	if err != nil {
-		fmt.Println(err.Error())
+		cli.WriteError(ctx, err)
 		os.Exit(2)
 	}
 
@@ -83,12 +114,12 @@ func main() {
 	for _, fnArg := range fnArgs {
 		argName, err := fnArg.Name(ctx)
 		if err != nil {
-			fmt.Println(err.Error())
+			cli.WriteError(ctx, err)
 			os.Exit(2)
 		}
 		argValue, err := fnArg.Value(ctx)
 		if err != nil {
-			fmt.Println(err.Error())
+			cli.WriteError(ctx, err)
 			os.Exit(2)
 		}
 		inputArgs[argName] = []byte(argValue)
@@ -106,15 +137,14 @@ func main() {
 	}
 	resultBytes, err := json.Marshal(result)
 	if err != nil {
-		fmt.Println(err.Error())
+		cli.WriteError(ctx, err)
 		os.Exit(2)
 	}
 
 	slog.Debug("returning", "result", string(resultBytes))
 
-	_, err = fnCall.ReturnValue(ctx, dagger.JSON(resultBytes))
-	if err != nil {
-		fmt.Println(err.Error())
+	if err := fnCall.ReturnValue(ctx, dagger.JSON(resultBytes)); err != nil {
+		cli.WriteError(ctx, err)
 		os.Exit(2)
 	}
 }
@@ -123,20 +153,6 @@ func main() {
 var initSrc embed.FS
 
 func invoke(ctx context.Context, modSrcDir string, modName string, parentJSON []byte, parentName string, fnName string, inputArgs map[string][]byte) (_ any, err error) {
-	pool, err := runtimes.NewPool(ctx, &bass.Config{
-		Runtimes: []bass.RuntimeConfig{
-			{
-				Platform: bass.LinuxPlatform,
-				Runtime:  runtimes.DaggerName,
-			},
-		},
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create runtime pool: %w", err)
-	}
-
-	ctx = bass.WithRuntimePool(ctx, pool)
-
 	var self bass.Value
 	if err := bass.UnmarshalJSON(parentJSON, &self); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal parent object: %w", err)
@@ -202,12 +218,12 @@ func invoke(ctx context.Context, modSrcDir string, modName string, parentJSON []
 
 	var thnk bass.Thunk
 	if err := ret.Decode(&thnk); err == nil {
-		return runtimes.NewDagger().Container(ctx, thnk, false)
+		return NewDagger().Container(ctx, thnk, false)
 	}
 
 	var path bass.ThunkPath
 	if err := ret.Decode(&path); err == nil {
-		baseCtr, err := runtimes.NewDagger().Container(ctx, path.Thunk, false)
+		baseCtr, err := NewDagger().Container(ctx, path.Thunk, false)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create container: %w", err)
 		}

@@ -5,6 +5,8 @@ import (
 	"context"
 	"fmt"
 	"path"
+
+	"dagger/bass/internal/dagger"
 )
 
 func New() *BassSdk {
@@ -29,12 +31,20 @@ const (
 )
 
 // ModuleRuntime returns a container with the node entrypoint ready to be called.
-func (t *BassSdk) ModuleRuntime(ctx context.Context, modSource *ModuleSource, introspectionJson string) (*Container, error) {
+func (t *BassSdk) ModuleRuntime(
+	ctx context.Context,
+	modSource *dagger.ModuleSource,
+	introspectionJson string,
+) (*dagger.Container, error) {
 	return t.CodegenBase(ctx, modSource, introspectionJson)
 }
 
 // Codegen returns the generated API client based on user's module
-func (t *BassSdk) Codegen(ctx context.Context, modSource *ModuleSource, introspectionJson string) (*GeneratedCode, error) {
+func (t *BassSdk) Codegen(
+	ctx context.Context,
+	modSource *dagger.ModuleSource,
+	introspectionJson string,
+) (*dagger.GeneratedCode, error) {
 	ctr, err := t.CodegenBase(ctx, modSource, introspectionJson)
 	if err != nil {
 		return nil, err
@@ -45,7 +55,11 @@ func (t *BassSdk) Codegen(ctx context.Context, modSource *ModuleSource, introspe
 		WithVCSIgnoredPaths([]string{}), nil
 }
 
-func (t *BassSdk) CodegenBase(ctx context.Context, modSource *ModuleSource, introspectionJson string) (*Container, error) {
+func (t *BassSdk) CodegenBase(
+	ctx context.Context,
+	modSource *dagger.ModuleSource,
+	introspectionJson string,
+) (*dagger.Container, error) {
 	modName, err := modSource.ModuleOriginalName(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("could not load module config: %v", err)
@@ -76,13 +90,14 @@ func (t *BassSdk) CodegenBase(ctx context.Context, modSource *ModuleSource, intr
 	// }), nil
 }
 
-func (t *BassSdk) Base() *Container {
+func (t *BassSdk) Base() *dagger.Container {
 	return dag.Container().
+		From("busybox").
 		WithFile("/bass", t.Entrypoint()).
 		WithEntrypoint([]string{"/bass"})
 }
 
-func (t *BassSdk) Entrypoint() *File {
+func (t *BassSdk) Entrypoint() *dagger.File {
 	return dag.Container().From("golang:1.22").
 		WithEnvVariable("CGO_ENABLED", "0").
 		WithDirectory("/src", dag.CurrentModule().Source()).
@@ -93,4 +108,14 @@ func (t *BassSdk) Entrypoint() *File {
 		WithEnvVariable("GOCACHE", "/go/build-cache").
 		WithExec([]string{"go", "build", "-o", "/bass", "./entrypoint"}).
 		File("/bass")
+}
+
+func (t *BassSdk) Repl() *dagger.Container {
+	return t.Base().
+		WithDefaultTerminalCmd([]string{"/bass"}).
+		WithMountedCache("/xdg/home", dag.CacheVolume("bass-repl-home")).
+		WithEnvVariable("XDG_DATA_HOME", "/xdg/home").
+		Terminal(dagger.ContainerTerminalOpts{
+			ExperimentalPrivilegedNesting: true,
+		})
 }

@@ -5,6 +5,9 @@ import (
 	"path"
 
 	"golang.org/x/sync/errgroup"
+
+	"dagger/test/internal/dagger"
+	"dagger/test/internal/telemetry"
 )
 
 func (m *Main) Testcontainers(ctx context.Context) error {
@@ -27,13 +30,14 @@ func (m *Main) Testcontainers(ctx context.Context) error {
 		"toxiproxy",
 	} {
 		suite := suite
-		eg.Go(func() error {
+		eg.Go(func() (rerr error) {
+			ctx, span := Tracer().Start(ctx, suite)
+			defer telemetry.End(span, func() error { return rerr })
 			_, err := dag.
-				Pipeline(suite).
-				Go(GoOpts{
+				Go(dagger.GoOpts{
 					Base: dag.Go().Base().With(dag.Testcontainers().Setup),
 				}).
-				Test(repo, GoTestOpts{
+				Test(repo, dagger.GoTestOpts{
 					Subdir:  path.Join("examples", suite),
 					Verbose: true,
 				}).

@@ -8,7 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log/slog"
+	logpkg "log"
 	"os"
 	"strings"
 	"time"

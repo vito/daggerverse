@@ -2,5 +2,5 @@
   "name": "bass-sdk",
   "sdk": "go",
   "source": ".",
-  "engineVersion": "v0.11.9"
+  "engineVersion": "v0.13.4"
 }
