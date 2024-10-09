@@ -1,12 +1,20 @@
 resources:
+- name: every-1m
+  type: time
+  icon: timer
+  source:
+    interval: 1m
+
 - name: dagger
   type: git
+  icon: github
   source:
     uri: https://github.com/vito/dagger
     branch: hackathon
 
 - name: engine
   type: registry-image
+  icon: docker
   source:
     repository: registry.dagger.io/engine
 
@@ -14,6 +22,7 @@ jobs:
 - name: hello
   plan:
   - get: dagger
+  - get: every-1m
   - get: engine
   - task: hello
     image: engine
@@ -41,6 +50,8 @@ jobs:
 
 - name: pending
   plan:
+  - get: every-1m
+    passed: [hello]
   - get: engine
     passed: [hello, docker-build]
   - get: dagger

@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 
 	"github.com/concourse/concourse/atc"
 	"golang.org/x/sync/errgroup"
@@ -19,12 +18,12 @@ type Pipeline struct {
 }
 
 func (pl *Pipeline) Run(ctx context.Context) error {
-	resourceStreams := make(map[Keyword]*Broadcast[*ResourceVersion])
+	resourceStreams := make(map[Keyword]*PubSub[*ResourceVersion])
 	for _, resource := range pl.Resources {
 		resourceStreams[resource.Name] = NewBroadcast[*ResourceVersion]()
 	}
 
-	jobStreams := make(map[Keyword]*Broadcast[Object[*ResourceVersion]])
+	jobStreams := make(map[Keyword]*PubSub[Object[*ResourceVersion]])
 	for _, job := range pl.Jobs {
 		jobStreams[job.Name] = NewBroadcast[Object[*ResourceVersion]]()
 	}
@@ -51,11 +50,11 @@ func (pl *Pipeline) Run(ctx context.Context) error {
 
 		var jobInputStream Stream[Object[*ResourceVersion]]
 		if len(dependentInputs) == 0 {
-			jobInputStream = Aggregate(ctx, independentInputs)
+			jobInputStream = Aggregate(ctx, job.Name, independentInputs)
 		} else if len(independentInputs) == 0 {
-			jobInputStream = Intersect(ctx, dependentInputs...)
+			jobInputStream = Intersect(ctx, job.Name, dependentInputs...)
 		} else {
-			jobInputStream = Intersect(ctx, append(dependentInputs, Aggregate(ctx, independentInputs))...)
+			jobInputStream = Intersect(ctx, job.Name, append(dependentInputs, Aggregate(ctx, job.Name, independentInputs))...)
 		}
 
 		successful := jobStreams[job.Name]
@@ -68,7 +67,7 @@ func (pl *Pipeline) Run(ctx context.Context) error {
 					if ctx.Err() != nil {
 						return nil
 					}
-					slog.Warn("failed to get inputs", "job", job.Name, "error", err)
+					log.Println("failed to get inputs", "job", job.Name, "error", err)
 					return err
 				}
 				buildCtx, buildSpan := Tracer().Start(ctx, "build: "+job.Name)

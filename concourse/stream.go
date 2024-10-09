@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"reflect"
 	"sync"
 	"sync/atomic"
@@ -66,15 +65,15 @@ type Subscribable[T any] interface {
 var ErrEndOfStream = errors.New("end of stream")
 var ErrStreamInterrupted = errors.New("stream interrupted")
 
-type Broadcast[T any] struct {
+type PubSub[T any] struct {
 	subscribers []chan<- T
 }
 
-func NewBroadcast[T any]() *Broadcast[T] {
-	return &Broadcast[T]{}
+func NewBroadcast[T any]() *PubSub[T] {
+	return &PubSub[T]{}
 }
 
-func (stream *Broadcast[T]) Subscribe() Stream[T] {
+func (stream *PubSub[T]) Subscribe() Stream[T] {
 	ch := make(chan T)
 	stream.subscribers = append(stream.subscribers, ch)
 	return &subscription[T]{
@@ -82,14 +81,14 @@ func (stream *Broadcast[T]) Subscribe() Stream[T] {
 	}
 }
 
-func (stream *Broadcast[T]) Close() {
+func (stream *PubSub[T]) Close() {
 	for _, sub := range stream.subscribers {
 		close(sub)
 	}
 }
 
-func (stream *Broadcast[T]) Emit(ctx context.Context, obj T) {
-	slog.Info("broadcasting", "obj", obj)
+func (stream *PubSub[T]) Emit(ctx context.Context, obj T) {
+	log.Println("broadcasting", "obj", obj)
 
 	done := ctx.Done()
 
@@ -107,7 +106,7 @@ type subscription[T any] struct {
 }
 
 func (sub *subscription[T]) Emit(ctx context.Context, obj T) {
-	slog.Info("emitting to subscription", "obj", obj)
+	log.Println("emitting to subscription", "obj", obj)
 	sub.queue <- obj
 }
 
@@ -131,6 +130,7 @@ func (sub *subscription[T]) Close(ctx context.Context) error {
 }
 
 type Intersection[T any] struct {
+	name    string
 	streams []Stream[Object[T]]
 
 	intersection chan Object[T]
@@ -149,13 +149,14 @@ type candidate[T any] struct {
 	vouchers map[Keyword]int
 }
 
-func Intersect[T any](ctx context.Context, streams ...Stream[Object[T]]) Stream[Object[T]] {
+func Intersect[T any](ctx context.Context, name string, streams ...Stream[Object[T]]) Stream[Object[T]] {
 	if len(streams) == 1 {
 		// optimization: prevent overhead; should be equivalent to single stream
 		return streams[0]
 	}
 
 	inter := &Intersection[T]{
+		name:         name,
 		streams:      streams,
 		intersection: make(chan Object[T]),
 		errs:         make(chan error, len(streams)),
@@ -170,7 +171,10 @@ func Intersect[T any](ctx context.Context, streams ...Stream[Object[T]]) Stream[
 	return inter
 }
 
-func (inter *Intersection[T]) Next(ctx context.Context) (Object[T], error) {
+func (inter *Intersection[T]) Next(ctx context.Context) (res Object[T], rerr error) {
+	defer func() {
+		log.Println("intersect.next: received from stream", "name", inter.name, "obj", res, "error", rerr)
+	}()
 	select {
 	case obj := <-inter.intersection:
 		return obj, nil
@@ -204,6 +208,7 @@ func (inter *Intersection[T]) Close(ctx context.Context) error {
 func (inter *Intersection[T]) spawn(ctx context.Context, stream Stream[Object[T]]) {
 	for {
 		obj, err := stream.Next(ctx)
+		log.Println("intersect.spawn: received from stream", "name", inter.name, "obj", obj, "error", err)
 		if err != nil {
 			if errors.Is(err, ErrEndOfStream) {
 				res := atomic.AddInt32(&inter.live, -1)
@@ -223,7 +228,7 @@ func (inter *Intersection[T]) spawn(ctx context.Context, stream Stream[Object[T]
 }
 
 func (inter *Intersection[T]) emit(obj Object[T]) {
-	slog.Info("emitting to intersection", "obj", obj)
+	log.Println("emitting to intersection", "obj", obj)
 
 	inter.candidatesL.Lock()
 	defer inter.candidatesL.Unlock()
@@ -241,6 +246,7 @@ func (inter *Intersection[T]) emit(obj Object[T]) {
 
 			if !reflect.DeepEqual(objV, v) {
 				compatible = false
+				log.Println("not compatible", "key", k, "objV", objV, "v", v)
 				break
 			}
 		}
@@ -249,6 +255,7 @@ func (inter *Intersection[T]) emit(obj Object[T]) {
 		// }
 
 		if !compatible {
+			log.Println("not compatible")
 			continue
 		}
 
@@ -292,6 +299,7 @@ func (inter *Intersection[T]) emit(obj Object[T]) {
 		}
 
 		if allVouched {
+			log.Println("all vouched", "candidate", candidate)
 			inter.intersection <- candidate.value
 
 			if len(inter.candidates) > i+1 { // TODO: probably an off-by-one somewhere in here
@@ -348,7 +356,7 @@ func (cat *Chained[T]) Next(ctx context.Context) (T, error) {
 				return zero, fmt.Errorf("skip first object: %w", err)
 			}
 
-			slog.Info("skipped first object", "obj", skipped)
+			log.Println("skipped first object", "obj", skipped)
 
 			cat.Stream = cont
 			continue
@@ -359,11 +367,12 @@ func (cat *Chained[T]) Next(ctx context.Context) (T, error) {
 }
 
 func (cat *Chained[T]) Close(ctx context.Context) error {
-	slog.Info("closing chained stream")
+	log.Println("closing chained stream")
 	return cat.Stream.Close(ctx)
 }
 
 type Aggregated[T any] struct {
+	name    string
 	streams map[Keyword]Stream[T]
 	cases   []reflect.SelectCase
 	chans   map[Keyword]<-chan T
@@ -372,8 +381,9 @@ type Aggregated[T any] struct {
 	next Object[T]
 }
 
-func Aggregate[T any](ctx context.Context, streams map[Keyword]Stream[T]) Stream[Object[T]] {
+func Aggregate[T any](ctx context.Context, name string, streams map[Keyword]Stream[T]) Stream[Object[T]] {
 	agg := &Aggregated[T]{
+		name:    name,
 		streams: streams,
 		cases:   make([]reflect.SelectCase, len(streams)),
 		chans:   make(map[Keyword]<-chan T, len(streams)),
@@ -404,6 +414,7 @@ func Aggregate[T any](ctx context.Context, streams map[Keyword]Stream[T]) Stream
 func (aggregated *Aggregated[T]) update(ctx context.Context, stream Stream[T], ch chan<- T) {
 	for {
 		obj, err := stream.Next(ctx)
+		log.Println("aggregate: received from stream", "name", aggregated.name, "obj", obj, "error", err)
 		if err != nil {
 			return
 		}
@@ -420,7 +431,10 @@ func (aggregated *Aggregated[T]) ready() bool {
 	return len(aggregated.next) == len(aggregated.streams)
 }
 
-func (aggregated *Aggregated[T]) Next(ctx context.Context) (Object[T], error) {
+func (aggregated *Aggregated[T]) Next(ctx context.Context) (res Object[T], rerr error) {
+	defer func() {
+		log.Println("aggregated.next: received from stream", "name", aggregated.name, "obj", res, "error", rerr)
+	}()
 	for name, ch := range aggregated.chans {
 		_, has := aggregated.next[name]
 		if has {

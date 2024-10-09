@@ -19,8 +19,11 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+var log *logpkg.Logger
+
 func init() {
 	atc.EnableAcrossStep = true
+	log = logpkg.New(os.Stderr, "", logpkg.Ltime)
 }
 
 type Concourse struct {
@@ -270,7 +273,7 @@ func (m *Concourse) LoadPipeline(ctx context.Context, configFile *dagger.File) (
 		return nil, fmt.Errorf("read config file: %w", err)
 	}
 
-	slog.Info("loading & validating config...")
+	log.Println("loading & validating config...")
 	var cfg atc.Config
 	if err := atc.UnmarshalConfig([]byte(config), &cfg); err != nil {
 		return nil, fmt.Errorf("malformed config: %w", err)
@@ -292,7 +295,7 @@ func (m *Concourse) LoadPipeline(ctx context.Context, configFile *dagger.File) (
 	}
 
 	for _, resourceType := range cfg.ResourceTypes {
-		slog.Info("installing resource type", "name", resourceType.Name)
+		log.Println("installing resource type", "name", resourceType.Name)
 		ctr, err := pipeline.imageResource(ctx, resourceType.Type, resourceType.Source, resourceType.Params)
 		if err != nil {
 			return nil, fmt.Errorf("install resource type %s: %w", resourceType.Name, err)
@@ -303,7 +306,7 @@ func (m *Concourse) LoadPipeline(ctx context.Context, configFile *dagger.File) (
 		})
 	}
 
-	slog.Info("loading resources...")
+	log.Println("loading resources...")
 	for _, resource := range cfg.Resources {
 		src, err := json.Marshal(resource.Source)
 		if err != nil {
@@ -321,7 +324,7 @@ func (m *Concourse) LoadPipeline(ctx context.Context, configFile *dagger.File) (
 		})
 	}
 
-	slog.Info("loading jobs...")
+	log.Println("loading jobs...")
 	for _, job := range cfg.Jobs {
 		cfgJSON, err := json.Marshal(job)
 		if err != nil {
