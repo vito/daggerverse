@@ -22,12 +22,9 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.25.0"
 	"go.uber.org/zap/zapcore"
 
-	// Use the official SDK for the telemetry package for better compatibility.
-	// v0.12.3 adds a ctx arg to telemetry.Close() and this isn't generated code.
-	"dagger.io/dagger/telemetry"
-
-	// Use the embedded Dagger SDK for the client.
+	// Use the embedded Dagger SDK for the client and telemetry APIs.
 	"dagger/bass/internal/dagger"
+	"dagger/bass/internal/telemetry"
 )
 
 var dag = dagger.Connect()
