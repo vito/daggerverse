@@ -4,22 +4,23 @@ package main
 
 import (
 	"fmt"
+	"gomod/internal/dagger"
 	"strings"
 )
 
 type Go struct {
-	Base       *Container
-	ModCache   *CacheVolume
-	BuildCache *CacheVolume
+	Base       *dagger.Container
+	ModCache   *dagger.CacheVolume
+	BuildCache *dagger.CacheVolume
 }
 
 func New(
 	// +optional
-	base *Container,
+	base *dagger.Container,
 	// +optional
-	modCache *CacheVolume,
+	modCache *dagger.CacheVolume,
 	// +optional
-	buildCache *CacheVolume,
+	buildCache *dagger.CacheVolume,
 ) *Go {
 	if base == nil {
 		base = dag.Container().From("golang:1")
@@ -46,7 +47,7 @@ func (g *Go) FromVersion(version string) *Go {
 // Build builds Go code using the go build CLI.
 func (g *Go) Build(
 	// The directory containing code to build.
-	src *Directory,
+	src *dagger.Directory,
 	// Packages to build.
 	// +optional
 	packages []string,
@@ -71,7 +72,7 @@ func (g *Go) Build(
 	// Arbitrary flags to pass along to go build.
 	// +optional
 	buildFlags []string,
-) *Directory {
+) *dagger.Directory {
 	ctr := g.Base.
 		With(g.GlobalCache).
 		WithDirectory("/out", dag.Directory()).
@@ -89,17 +90,16 @@ func (g *Go) Build(
 		ctr = ctr.WithEnvVariable("GOARCH", GOARCH)
 	}
 
-	cmd := []string{
-		"go", "build",
+	cmd := []string{"go", "build"}
+	cmd = append(cmd, buildFlags...)
+	cmd = append(cmd,
 		"-o", "/out/",
 		"-trimpath", // unconditional for reproducible builds
-	}
+	)
 
 	if race {
 		cmd = append(cmd, "-race")
 	}
-
-	cmd = append(cmd, buildFlags...)
 
 	if len(xDefs) > 0 {
 		cmd = append(cmd, "-ldflags", "-X "+strings.Join(xDefs, " -X "))
@@ -121,7 +121,7 @@ func (g *Go) Build(
 // Test runs tests using the go test CLI.
 func (g *Go) Test(
 	// The directory containing code to test.
-	src *Directory,
+	src *dagger.Directory,
 	// Subdirectory in which to run the tests, i.e. go run -C.
 	//
 	// This is useful when running tests in a Go module that refers to a parent
@@ -147,7 +147,7 @@ func (g *Go) Test(
 	// Enable experimental Dagger nesting.
 	// +optional
 	nest bool,
-) (*Container, error) {
+) (*dagger.Container, error) {
 	ctr := g.Base.
 		With(g.GlobalCache).
 		WithMountedDirectory("/src", src).
@@ -176,7 +176,7 @@ func (g *Go) Test(
 
 	goTest = append(goTest, pkgs...)
 
-	return ctr.WithExec(goTest, ContainerWithExecOpts{
+	return ctr.WithExec(goTest, dagger.ContainerWithExecOpts{
 		InsecureRootCapabilities:      insecureRootCapabilities,
 		ExperimentalPrivilegedNesting: nest,
 	}), nil
@@ -187,7 +187,7 @@ func (g *Go) Test(
 // The base container must have the gotestsum CLI installed.
 func (g *Go) Gotestsum(
 	// The directory containing code to test.
-	src *Directory,
+	src *dagger.Directory,
 	// Packages to test.
 	// +optional
 	packages []string,
@@ -210,7 +210,7 @@ func (g *Go) Gotestsum(
 	// Arbitrary flags to pass along to gotestsum.
 	// +optional
 	gotestsumFlags []string,
-) *Container {
+) *dagger.Container {
 	cmd := []string{
 		"gotestsum",
 		"--no-color=false", // force color
@@ -231,14 +231,14 @@ func (g *Go) Gotestsum(
 		With(g.GlobalCache).
 		WithMountedDirectory("/src", src).
 		WithWorkdir("/src").
-		WithExec(cmd, ContainerWithExecOpts{
+		WithExec(cmd, dagger.ContainerWithExecOpts{
 			InsecureRootCapabilities:      insecureRootCapabilities,
 			ExperimentalPrivilegedNesting: nest,
 		})
 }
 
 // Generate runs go generate ./... and returns the updated directory.
-func (g *Go) Generate(src *Directory) *Directory {
+func (g *Go) Generate(src *dagger.Directory) *dagger.Directory {
 	return g.Base.
 		With(g.GlobalCache).
 		With(Cd("/src", src)).
@@ -250,12 +250,12 @@ func (g *Go) Generate(src *Directory) *Directory {
 //
 // The base container must have the golangci-lint CLI installed.
 func (g *Go) GolangCILint(
-	src *Directory,
+	src *dagger.Directory,
 	// +optional
 	verbose bool,
 	// +optional
 	timeoutInSeconds int,
-) *Container {
+) *dagger.Container {
 	cmd := []string{"golangci-lint", "run"}
 	if verbose {
 		cmd = append(cmd, "--verbose")
