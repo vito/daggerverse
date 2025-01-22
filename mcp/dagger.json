@@ -1,0 +1,18 @@
+{
+  "name": "mcp-dagger",
+  "engineVersion": "v0.15.2",
+  "sdk": "go",
+  "dependencies": [
+    {
+      "name": "go",
+      "source": "github.com/dagger/dagger/modules/go@v0.15.2",
+      "pin": "b13f2c640a019a0197765e8d5cea1cc96786c487"
+    },
+    {
+      "name": "wolfi",
+      "source": "github.com/dagger/dagger/modules/wolfi@v0.15.2",
+      "pin": "b13f2c640a019a0197765e8d5cea1cc96786c487"
+    }
+  ],
+  "source": "."
+}
