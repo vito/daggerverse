@@ -13,6 +13,7 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 
 	"dagger/mcp-gql/internal/dagger"
+	"dagger/mcp-gql/introspection"
 	"dagger/mcp-gql/server/knowledge"
 )
 
@@ -93,19 +94,40 @@ func main() {
 		})
 
 	s.AddTool(
-		mcp.NewTool("learn_querying",
+		mcp.NewTool("learn_schema",
 			mcp.WithDescription(
-				`Learn about querying.`,
+				`Retrieve a snapshot of the current schema in GraphQL SDL format.`,
+			),
+			mcp.WithString("type",
+				mcp.Description("The type to learn about. Start with Query and work from there."),
 			),
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			return mcp.NewToolResultText(knowledge.Querying), nil
+			typeName, ok := request.Params.Arguments["type"].(string)
+			if !ok {
+				return mcp.NewToolResultError("type must be a string"), nil
+			}
+
+			var resp introspection.Response
+			if err := dag.GraphQLClient().MakeRequest(ctx, &graphql.Request{
+				Query: introspection.Query,
+			}, &graphql.Response{
+				Data: &resp,
+			}); err != nil {
+				return nil, err
+			}
+
+			resp.Schema.OnlyType(typeName)
+
+			var buf strings.Builder
+			resp.Schema.RenderSDL(&buf)
+			return mcp.NewToolResultText(buf.String()), nil
 		})
 
 	s.AddTool(
-		mcp.NewTool("dagger_query",
+		mcp.NewTool("run_query",
 			mcp.WithDescription(
-				`Execute a GraphQL query. <prerequisite>Learn about querying first.</prerequisite>`,
+				knowledge.Querying,
 			),
 			mcp.WithString("query",
 				mcp.Required(),
