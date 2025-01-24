@@ -1,4 +1,11 @@
-Each heading is a firm rule for you to follow.
+Your overall process for querying is this:
+
+1. Identify any module refs (`github.com/foo/bar`) and install them first.
+2. Analyze the schema to ensure you are constructing a wholly valid query.
+3. Only after you are certain the query is correct, run it. Never guess - you
+   must have 100% certainty.
+
+Each heading is a firm rule for you to follow throughout this process.
 
 ## Only run queries that you know are valid
 
