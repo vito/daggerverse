@@ -58,7 +58,7 @@ func main() {
 		Runtimes: []bass.RuntimeConfig{
 			{
 				Platform: bass.LinuxPlatform,
-				Runtime:  DaggerName,
+				Runtime:  RuntimeName,
 			},
 		},
 	})

@@ -21,11 +21,10 @@ import (
 	"dagger/bass/internal/dagger"
 )
 
-// swap out the one from bass, should just rm it eventually
-const DaggerName = runtimes.DaggerName
+const RuntimeName = "dagger"
 
 func init() {
-	runtimes.RegisterRuntime(DaggerName, func(context.Context, bass.RuntimePool, *bass.Scope) (bass.Runtime, error) {
+	runtimes.RegisterRuntime(RuntimeName, func(context.Context, bass.RuntimePool, *bass.Scope) (bass.Runtime, error) {
 		return NewDagger(), nil
 	})
 }

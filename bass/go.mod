@@ -10,13 +10,11 @@ require (
 	github.com/iancoleman/strcase v0.3.0
 	github.com/lmittmann/tint v1.0.4
 	github.com/vektah/gqlparser/v2 v2.5.16
-	github.com/vito/bass v0.12.1-0.20240712160301-04910306d8ac
+	github.com/vito/bass v0.12.1-0.20250129202128-8e559fe95385
 	go.uber.org/zap v1.27.0
 	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa
 	golang.org/x/sync v0.8.0
 )
-
-require dagger.io/dagger v0.12.2
 
 require (
 	filippo.io/edwards25519 v1.0.0-rc.1 // indirect
@@ -68,7 +66,6 @@ require (
 	github.com/mattn/go-localereader v0.0.1 // indirect
 	github.com/mattn/go-runewidth v0.0.14 // indirect
 	github.com/mattn/go-tty v0.0.3 // indirect
-	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/moby/buildkit v0.11.0-rc3.0.20230414164010-f1f27537acc7 // indirect
 	github.com/moby/patternmatcher v0.5.0 // indirect
