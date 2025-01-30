@@ -25,6 +25,7 @@ import (
 	// Use the embedded Dagger SDK for the client and telemetry APIs.
 	"dagger/bass/internal/dagger"
 	"dagger/bass/internal/telemetry"
+	"dagger/bass/runtime"
 )
 
 var dag = dagger.Connect()
@@ -58,7 +59,7 @@ func main() {
 		Runtimes: []bass.RuntimeConfig{
 			{
 				Platform: bass.LinuxPlatform,
-				Runtime:  RuntimeName,
+				Runtime:  runtime.Name,
 			},
 		},
 	})
@@ -215,12 +216,12 @@ func invoke(ctx context.Context, modSrcDir string, modName string, parentJSON []
 
 	var thnk bass.Thunk
 	if err := ret.Decode(&thnk); err == nil {
-		return NewDagger().Container(ctx, thnk, false)
+		return runtime.NewDagger().Container(ctx, thnk, false)
 	}
 
 	var path bass.ThunkPath
 	if err := ret.Decode(&path); err == nil {
-		baseCtr, err := NewDagger().Container(ctx, path.Thunk, false)
+		baseCtr, err := runtime.NewDagger().Container(ctx, path.Thunk, false)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create container: %w", err)
 		}

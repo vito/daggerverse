@@ -5,9 +5,18 @@ import (
 	"context"
 	"fmt"
 	"path"
+	"testing"
 
 	"dagger/bass/internal/dagger"
+	"dagger/bass/internal/telemetry"
+	"dagger/bass/runtime"
+
+	"github.com/vito/bass/pkg/bass"
+	"github.com/vito/bass/pkg/runtimes"
+	"github.com/vito/bass/pkg/testctx"
 )
+
+const Golang = "golang:1.23"
 
 func New() *BassSdk {
 	return &BassSdk{
@@ -98,14 +107,7 @@ func (t *BassSdk) Base() *dagger.Container {
 }
 
 func (t *BassSdk) Entrypoint() *dagger.File {
-	return dag.Container().From("golang:1.22").
-		WithEnvVariable("CGO_ENABLED", "0").
-		WithDirectory("/src", dag.CurrentModule().Source()).
-		WithWorkdir("/src").
-		WithMountedCache("/go/pkg/mod", dag.CacheVolume("go-mod")).
-		WithEnvVariable("GOMODCACHE", "/go/pkg/mod").
-		WithMountedCache("/go/build-cache", dag.CacheVolume("go-build")).
-		WithEnvVariable("GOCACHE", "/go/build-cache").
+	return t.goBase().
 		WithExec([]string{"go", "build", "-o", "/bass", "./entrypoint"}).
 		File("/bass")
 }
@@ -118,4 +120,47 @@ func (t *BassSdk) Repl() *dagger.Container {
 		Terminal(dagger.ContainerTerminalOpts{
 			ExperimentalPrivilegedNesting: true,
 		})
+}
+
+func (t *BassSdk) Test(ctx context.Context) error {
+	m := testing.MainStart(TestDeps{}, []testing.InternalTest{
+		{
+			Name: "TestRuntime",
+			F: func(t *testing.T) {
+				tc := testctx.New(ctx, t)
+				for _, middleware := range []testctx.MiddlewareT{
+					testctx.WithParallel,
+					testctx.WithOTelLogging[*testing.T](telemetry.Logger(ctx, "dagger.io/sdk.go")),
+					testctx.WithOTelTracing[*testing.T](Tracer()),
+				} {
+					tc = middleware(tc)
+				}
+				runtimes.Suite(tc.Context(), tc, bass.RuntimeConfig{
+					Platform: bass.LinuxPlatform,
+					Runtime:  runtime.Name,
+				}, runtimes.SkipSuites(
+					"tls.bass",
+					"cache-cmd.bass",
+					"globs.bass",
+				))
+			},
+		},
+	}, nil, nil, nil)
+
+	if m.Run() != 0 {
+		return fmt.Errorf("tests failed")
+	}
+
+	return nil
+}
+
+func (t *BassSdk) goBase() *dagger.Container {
+	return dag.Container().From(Golang).
+		WithEnvVariable("CGO_ENABLED", "0").
+		WithDirectory("/src", dag.CurrentModule().Source()).
+		WithWorkdir("/src").
+		WithMountedCache("/go/pkg/mod", dag.CacheVolume("go-mod")).
+		WithEnvVariable("GOMODCACHE", "/go/pkg/mod").
+		WithMountedCache("/go/build-cache", dag.CacheVolume("go-build")).
+		WithEnvVariable("GOCACHE", "/go/build-cache")
 }

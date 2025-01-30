@@ -1,4 +1,4 @@
-package main
+package runtime
 
 import (
 	"context"
@@ -21,10 +21,12 @@ import (
 	"dagger/bass/internal/dagger"
 )
 
-const RuntimeName = "dagger"
+const Name = "dagger"
+
+var dag = dagger.Connect()
 
 func init() {
-	runtimes.RegisterRuntime(RuntimeName, func(context.Context, bass.RuntimePool, *bass.Scope) (bass.Runtime, error) {
+	runtimes.RegisterRuntime(Name, func(context.Context, bass.RuntimePool, *bass.Scope) (bass.Runtime, error) {
 		return NewDagger(), nil
 	})
 }
