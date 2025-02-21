@@ -60,7 +60,7 @@ func main() {
 				return mcp.NewToolResultError("ref must be a string"), nil
 			}
 
-			err := dag.ModuleSource(ref).AsModule().Initialize().Serve(ctx)
+			err := dag.ModuleSource(ref).AsModule().Serve(ctx)
 			if err != nil {
 				return nil, err
 			}
