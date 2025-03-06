@@ -88,6 +88,9 @@ func (m *McpDagger) LearnSchema(ctx context.Context, typeName string) (string, e
 	}
 
 	resp.Schema.OnlyType(typeName)
+	if len(resp.Schema.Types) == 0 {
+		return "", fmt.Errorf("type %q not found", typeName)
+	}
 
 	var buf strings.Builder
 	resp.Schema.RenderSDL(&buf)
