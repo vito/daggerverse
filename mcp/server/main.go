@@ -14,7 +14,7 @@ import (
 
 	"dagger/mcp-gql/internal/dagger"
 	"dagger/mcp-gql/introspection"
-	"dagger/mcp-gql/server/knowledge"
+	"dagger/mcp-gql/knowledge"
 )
 
 var PORT = os.Getenv("PORT")
