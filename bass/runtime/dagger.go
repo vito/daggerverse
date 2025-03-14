@@ -332,11 +332,11 @@ func (runtime *Dagger) mount(ctx context.Context, ctr *dagger.Container, target 
 		var mode dagger.CacheSharingMode
 		switch src.Cache.ConcurrencyMode {
 		case bass.ConcurrencyModeShared:
-			mode = dagger.Shared
+			mode = dagger.CacheSharingModeShared
 		case bass.ConcurrencyModePrivate:
-			mode = dagger.Private
+			mode = dagger.CacheSharingModePrivate
 		case bass.ConcurrencyModeLocked:
-			mode = dagger.Locked
+			mode = dagger.CacheSharingModeLocked
 		}
 
 		return ctr.WithMountedCache(

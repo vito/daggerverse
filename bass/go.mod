@@ -1,22 +1,24 @@
 module dagger/bass
 
-go 1.22.7
+go 1.23.0
 
-toolchain go1.23.2
+toolchain go1.23.6
 
 require (
-	github.com/99designs/gqlgen v0.17.49
-	github.com/Khan/genqlient v0.7.0
+	github.com/99designs/gqlgen v0.17.66
+	github.com/Khan/genqlient v0.8.0
 	github.com/iancoleman/strcase v0.3.0
 	github.com/lmittmann/tint v1.0.4
-	github.com/vektah/gqlparser/v2 v2.5.16
+	github.com/vektah/gqlparser/v2 v2.5.23
 	github.com/vito/bass v0.12.1-0.20250130025852-f5df5959e93d
 	go.uber.org/zap v1.27.0
-	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa
-	golang.org/x/sync v0.10.0
+	golang.org/x/sync v0.12.0
 )
 
-require go.opentelemetry.io/auto/sdk v1.1.0 // indirect
+require (
+	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
+	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa // indirect
+)
 
 require (
 	filippo.io/edwards25519 v1.0.0-rc.1 // indirect
@@ -63,7 +65,7 @@ require (
 	github.com/klauspost/compress v1.16.5 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.7 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
-	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-localereader v0.0.1 // indirect
 	github.com/mattn/go-runewidth v0.0.14 // indirect
@@ -104,39 +106,42 @@ require (
 	go.opentelemetry.io/otel v1.34.0
 	go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc v0.8.0
 	go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp v0.8.0
+	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.32.0
+	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.32.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.32.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.32.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.32.0
 	go.opentelemetry.io/otel/log v0.10.0
-	go.opentelemetry.io/otel/metric v1.34.0 // indirect
+	go.opentelemetry.io/otel/metric v1.34.0
 	go.opentelemetry.io/otel/sdk v1.34.0
 	go.opentelemetry.io/otel/sdk/log v0.10.0
+	go.opentelemetry.io/otel/sdk/metric v1.34.0
 	go.opentelemetry.io/otel/trace v1.34.0
 	go.opentelemetry.io/proto/otlp v1.3.1
 	go.step.sm/crypto v0.16.2 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.31.0 // indirect
-	golang.org/x/mod v0.18.0 // indirect
-	golang.org/x/net v0.33.0 // indirect
-	golang.org/x/oauth2 v0.23.0 // indirect
-	golang.org/x/sys v0.29.0 // indirect
-	golang.org/x/term v0.27.0 // indirect
-	golang.org/x/text v0.21.0 // indirect
+	golang.org/x/crypto v0.36.0 // indirect
+	golang.org/x/mod v0.23.0 // indirect
+	golang.org/x/net v0.37.0 // indirect
+	golang.org/x/oauth2 v0.25.0 // indirect
+	golang.org/x/sys v0.31.0 // indirect
+	golang.org/x/term v0.30.0 // indirect
+	golang.org/x/text v0.23.0 // indirect
 	golang.org/x/time v0.1.0 // indirect
-	golang.org/x/tools v0.22.0 // indirect
+	golang.org/x/tools v0.30.0 // indirect
 	google.golang.org/genproto v0.0.0-20240227224415-6ceb2ff114de // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20241113202542-65e8d215514f // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20241113202542-65e8d215514f // indirect
-	google.golang.org/grpc v1.68.0
-	google.golang.org/protobuf v1.35.2 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20250106144421-5f5ef82da422 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250115164207-1a7da9e5054f // indirect
+	google.golang.org/grpc v1.71.0
+	google.golang.org/protobuf v1.36.5 // indirect
 )
 
 replace github.com/spy16/slurp => github.com/spy16/slurp v0.2.3 // indirect
 
-replace go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc => go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc v0.0.0-20240518090000-14441aefdf88
+replace go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc => go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc v0.8.0
 
-replace go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp => go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp v0.3.0
+replace go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp => go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp v0.8.0
 
-replace go.opentelemetry.io/otel/log => go.opentelemetry.io/otel/log v0.3.0
+replace go.opentelemetry.io/otel/log => go.opentelemetry.io/otel/log v0.8.0
 
-replace go.opentelemetry.io/otel/sdk/log => go.opentelemetry.io/otel/sdk/log v0.3.0
+replace go.opentelemetry.io/otel/sdk/log => go.opentelemetry.io/otel/sdk/log v0.8.0

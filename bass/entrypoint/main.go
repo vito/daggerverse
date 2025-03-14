@@ -387,13 +387,13 @@ func typeOf(val bass.Value) (*dagger.TypeDef, error) {
 	case bass.Symbol:
 		switch x {
 		case "String":
-			return def.WithKind(dagger.StringKind), nil
+			return def.WithKind(dagger.TypeDefKindStringKind), nil
 		case "Integer":
-			return def.WithKind(dagger.IntegerKind), nil
+			return def.WithKind(dagger.TypeDefKindIntegerKind), nil
 		case "Boolean":
-			return def.WithKind(dagger.BooleanKind), nil
+			return def.WithKind(dagger.TypeDefKindBooleanKind), nil
 		case "Void":
-			return def.WithKind(dagger.VoidKind), nil
+			return def.WithKind(dagger.TypeDefKindVoidKind), nil
 		default:
 			return def.WithObject(x.String()), nil
 		}
