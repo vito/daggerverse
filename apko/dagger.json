@@ -1,6 +1,7 @@
 {
   "name": "apko",
-  "sdk": "../bass",
-  "source": ".",
-  "engineVersion": "v0.13.4"
+  "engineVersion": "v0.16.3",
+  "sdk": {
+    "source": "../bass"
+  }
 }
