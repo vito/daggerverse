@@ -3,3 +3,5 @@ Session.vim
 /dagger.gen.go
 /internal/
 /querybuilder/
+
+.env
