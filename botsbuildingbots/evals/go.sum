@@ -1,5 +1,3 @@
-dagger.io/dagger v0.15.3 h1:Ec1wWjan+qZYeuXG533bDYLb9xqa5uNWYztndfBj/b0=
-dagger.io/dagger v0.15.3/go.mod h1:4fSn1DGrrW1pNWf8KNMYZkoecu+QI+w9LxkrfWkEr8M=
 github.com/99designs/gqlgen v0.17.68 h1:vH6jTShCv7sgz1ejXEDNqho7KWlA4ZwSWzVsxyhypAM=
 github.com/99designs/gqlgen v0.17.68/go.mod h1:fvCiqQAu2VLhKXez2xFvLmE47QgAPf/KTPN5XQ4rsHQ=
 github.com/Khan/genqlient v0.8.0 h1:Hd1a+E1CQHYbMEKakIkvBH3zW0PWEeiX6Hp1i2kP2WE=
@@ -10,10 +8,6 @@ github.com/cenkalti/backoff/v4 v4.3.0 h1:MyRJ/UdXutAwSAT+s3wNd7MfTIcy71VQueUuFK3
 github.com/cenkalti/backoff/v4 v4.3.0/go.mod h1:Y3VNntkOUPxTVeUxJ/G5vcM//AlwfmyYozVcomhLiZE=
 github.com/containerd/stargz-snapshotter/estargz v0.16.3 h1:7evrXtoh1mSbGj/pfRccTampEyKpjpOnS3CyiV1Ebr8=
 github.com/containerd/stargz-snapshotter/estargz v0.16.3/go.mod h1:uyr4BfYfOj3G9WBVE8cOlQmXAbPN9VEQpBBeJIuOipU=
-github.com/dagger/testctx v0.0.4 h1:In6AOkH1Q6LHWHAnMByViz9SFiXbYjKttGlO6GciE9s=
-github.com/dagger/testctx v0.0.4/go.mod h1:vfRtiq0HrtSux/H60iD1x7zYfrBgEtoDR1P3hJ523Oo=
-github.com/dagger/testctx/oteltest v0.0.3 h1:3a4u7S2HhQtUvZbRs+1WC4qWNCLlbcm2KoEK/Lhck/4=
-github.com/dagger/testctx/oteltest v0.0.3/go.mod h1:HOA6RdE7lWaawXCzI0jB0hJ+RhoXIgDoX6IB1dZGgtg=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/docker/cli v27.5.0+incompatible h1:aMphQkcGtpHixwwhAXJT1rrK/detk2JIvDaFkLctbGM=
