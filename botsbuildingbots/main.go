@@ -3,68 +3,80 @@ package main
 import (
 	"context"
 	"dagger/botsbuildingbots/internal/dagger"
+	_ "embed"
 )
 
 type BotsBuildingBots struct {
-	WriterModel string
-	EvalModel   string
-	Evals       int
+	Scheme        *dagger.File
+	InitialPrompt string
+	WriterModel   string
+	EvalModel     string
+	Attempts      int
 }
 
 func New(
+	// The documentation for the tool calling scheme to generate a prompt for.
+	// +defaultPath=./md/dagger_scheme.md
+	scheme *dagger.File,
+	// An initial system prompt to evaluate and use as a starting point.
+	// +optional
+	initialPrompt string,
+	// Model to use to generate the prompt.
 	// +optional
 	model string,
+	// Model to use to run the evaluations.
 	// +optional
 	evalModel string,
-	// Number of evaluations to run.
-	// +default=2
-	evals int,
+	// Number of evaluations to run in parallel.
+	// +default=1
+	attempts int,
 ) *BotsBuildingBots {
 	return &BotsBuildingBots{
-		WriterModel: model,
-		EvalModel:   evalModel,
-		Evals:       evals,
+		Scheme:        scheme,
+		InitialPrompt: initialPrompt,
+		WriterModel:   model,
+		EvalModel:     evalModel,
+		Attempts:      attempts,
 	}
 }
 
 func (m *BotsBuildingBots) llm() *dagger.LLM {
 	return dag.LLM(dagger.LLMOpts{Model: m.WriterModel}).
 		WithWorkspace(dag.Workspace(dagger.WorkspaceOpts{
-			Model: m.EvalModel,
-			Evals: m.Evals,
+			Model:        m.EvalModel,
+			Attempts:     m.Attempts,
+			SystemPrompt: m.InitialPrompt,
 		}))
 }
 
-func (m *BotsBuildingBots) Singularity(
-	ctx context.Context,
-	// The model consuming the system prompt and running evaluations.
-	// +default=""
-	model string,
-) (string, error) {
+func (m *BotsBuildingBots) SystemPrompt(ctx context.Context) (string, error) {
 	return m.llm().
 		WithSystemPrompt(`You are an autonomous system prompt refinement loop.
 
 Your job is to:
-1. Analyze the README and come up with a way to frame the system prompt.
-2. Generate a system prompt. START WITH ONE SENTENCE. Framing is PARAMOUNT.
-3. Run the evaluations and analyze the results.
-4. Generate a report summarizing:
+1. Generate a system prompt. START WITH ONE SENTENCE. Framing is PARAMOUNT.
+2. Run the evaluations and analyze the results.
+3. Generate a report summarizing:
 	- Your current understanding of the failures or successes
   - Your analysis of the success rate and token usage cost
-5. If improvement is needed, generate a new system prompt and repeat the cycle.
-6. If the evaluation passes fully, output the final system prompt and stop.
+4. If improvement is needed, generate a new system prompt and repeat the cycle.
+5. If the evaluation passes fully, output the final system prompt and stop.
 
 You control this loop end-to-end. Do not treat this as a one-shot task. Continue refining until success is achieved.
 `).
+		SetFile("README", m.Scheme).
 		WithPrompt(`Read the README and generate the best system prompt for it. Keep going until all attempts succeed.`).
-		// WithSystemPrompt("Generate a system prompt that efficiently and accurately conveys the README.").
-		// WithSystemPrompt("Run the evaluations and grade the result.").
-		// WithSystemPrompt("After each evaluation, explain your reasoning and adjust the prompt to address issues, and try again.").
-		// WithSystemPrompt("").
-		// WithSystemPrompt("").
-		// WithSystemPrompt("").
-		// // WSystemithPrompt("After each evaluation, analyze the success rate and history and generate a report. If 100%System of the attempts succeeded, you may stop. If not, explain your thought process for the next iterSystemation.").
-		// WithSystemPrompt("Keep going until 100% of the evaluation attempts succeed.").
 		Workspace().
 		SystemPrompt(ctx)
+}
+
+func (m *BotsBuildingBots) Explore(ctx context.Context) *dagger.Directory {
+	return m.llm().
+		WithPrompt(`You are a quality assurance engineer running a suite of LLM evals and finding any issues that various models have interpreting them.`).
+		WithPrompt(`Focus on exploration. Find evals that work on some models, but not others.`).
+		WithPrompt(`If an eval fails for all models, don't bother running it again, but if there is partial success, try running it again or with different models.`).
+		WithPrompt(`BEWARE: you will almost certainly hit rate limits. Find something else to do with another model in that case, or back off for a bit.`).
+		WithPrompt(`Keep performing evaluations against various models. Take notes and stop once you become exhausted, returning the notes directory.`).
+		SetDirectory("notes", dag.Directory()).
+		Directory()
 }
