@@ -37,10 +37,10 @@ func New(
 	evals int,
 ) *Workspace {
 	return &Workspace{
-		Model:        model,
-		Evals:        evals,
-		README:       README,
-		SystemPrompt: INITIAL,
+		Model:  model,
+		Evals:  evals,
+		README: README,
+		// SystemPrompt: INITIAL,
 		// SystemPrompt: README,
 	}
 }
@@ -96,21 +96,52 @@ func (w *Workspace) Evaluate(ctx context.Context) (string, error) {
 	wg.Wait()
 
 	finalReport := new(strings.Builder)
-	fmt.Fprintln(finalReport, "# All Attempts")
+	fmt.Fprintln(finalReport, "# Model:", w.Model)
+	fmt.Fprintln(finalReport)
+	fmt.Fprintln(finalReport, "## All Attempts")
 	fmt.Fprintln(finalReport)
 	for _, report := range reports {
 		fmt.Fprint(finalReport, report)
 	}
 
-	fmt.Fprintln(finalReport, "# Final Report")
+	fmt.Fprintln(finalReport, "## Final Report")
 	fmt.Fprintln(finalReport)
 	fmt.Fprintf(finalReport, "SUCCESS RATE: %d/%d (%.f%%)\n", successCount, w.Evals, float64(successCount)/float64(w.Evals)*100)
 
 	return finalReport.String(), nil
 }
 
+func (w *Workspace) EvaluateAllModelsOnce(ctx context.Context) ([]string, error) {
+	models := []string{
+		"gpt-4o",
+		"gemini-2.0-flash",
+		"claude-3-5-sonnet-latest",
+		"claude-3-7-sonnet-latest",
+	}
+	reports := make([]string, len(models))
+	wg := new(sync.WaitGroup)
+	for i, model := range models {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			ctx, span := Tracer().Start(ctx, fmt.Sprintf("model: %s", model),
+				telemetry.Reveal())
+			report, err := New(model, 1).Evaluate(ctx)
+			telemetry.End(span, func() error { return err })
+			if err != nil {
+				reports[i] = fmt.Sprintf("ERROR: %s", err)
+			} else {
+				reports[i] = report
+			}
+		}()
+	}
+	wg.Wait()
+	return reports, nil
+}
+
 func (w *Workspace) evaluate(attempt int) *dagger.EvalsReport {
-	return dag.Evals(attempt + 1).
+	return dag.Evals().
+		WithAttempt(attempt + 1).
 		WithModel(w.Model).
 		WithSystemPrompt(w.SystemPrompt).
 		BuildMulti()
