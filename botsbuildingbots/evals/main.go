@@ -251,7 +251,13 @@ func withLLMReport(
 
 	llm, err := llm.Sync(ctx)
 	if err != nil {
-		return nil, err
+		fmt.Fprintln(report, "Evaluation errored:")
+		fmt.Fprintln(report)
+		fmt.Fprintln(report, err)
+		return &Report{
+			Succeeded: false,
+			Report:    report.String(),
+		}, nil
 	}
 
 	var succeeded bool

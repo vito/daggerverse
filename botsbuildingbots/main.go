@@ -70,13 +70,13 @@ You control this loop end-to-end. Do not treat this as a one-shot task. Continue
 		SystemPrompt(ctx)
 }
 
-func (m *BotsBuildingBots) Explore(ctx context.Context) *dagger.Directory {
+func (m *BotsBuildingBots) Explore(ctx context.Context) ([]string, error) {
 	return m.llm().
 		WithPrompt(`You are a quality assurance engineer running a suite of LLM evals and finding any issues that various models have interpreting them.`).
 		WithPrompt(`Focus on exploration. Find evals that work on some models, but not others.`).
 		WithPrompt(`If an eval fails for all models, don't bother running it again, but if there is partial success, try running it again or with different models.`).
 		WithPrompt(`BEWARE: you will almost certainly hit rate limits. Find something else to do with another model in that case, or back off for a bit.`).
-		WithPrompt(`Keep performing evaluations against various models. Take notes and stop once you become exhausted, returning the notes directory.`).
-		SetDirectory("notes", dag.Directory()).
-		Directory()
+		WithPrompt(`Keep performing evaluations against various models, and record any interesting findings.`).
+		Workspace().
+		Findings(ctx)
 }

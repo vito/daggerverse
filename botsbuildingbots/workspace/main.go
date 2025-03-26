@@ -21,6 +21,9 @@ type Workspace struct {
 
 	// The current system prompt.
 	SystemPrompt string
+
+	// Observations made throughout running evaluations.
+	Findings []string
 }
 
 var knownModels = []string{
@@ -64,7 +67,7 @@ func (w *Workspace) WithSystemPrompt(prompt string) *Workspace {
 
 // Backoff sleeps for the given duration in seconds.
 //
-// Use this if you're getting rate limited.
+// Use this if you're getting rate limited and have nothing better to do.
 func (w *Workspace) Backoff(seconds int) *Workspace {
 	time.Sleep(time.Duration(seconds) * time.Second)
 	return w
@@ -80,12 +83,24 @@ func (w *Workspace) EvalNames() []string {
 	return names
 }
 
+// The list of models that you can run evaluations against.
+func (w *Workspace) KnownModels() []string {
+	return knownModels
+}
+
+// Record an interesting finding after performing evaluations.
+func (w *Workspace) RecordFinding(finding string) *Workspace {
+	w.Findings = append(w.Findings, finding)
+	return w
+}
+
 // Run an evaluation and return its report.
-func (w *Workspace) Evaluate(ctx context.Context, eval string) (string, error) {
+func (w *Workspace) EvaluateModel(ctx context.Context, eval string, model string) (_ string, rerr error) {
 	evalFn, ok := evals[eval]
 	if !ok {
 		return "", fmt.Errorf("unknown evaluation: %s", eval)
 	}
+
 	reports := make([]string, w.Attempts)
 	wg := new(sync.WaitGroup)
 	var successCount int
@@ -94,19 +109,19 @@ func (w *Workspace) Evaluate(ctx context.Context, eval string) (string, error) {
 		go func() {
 			defer wg.Done()
 
-			ctx, span := Tracer().Start(ctx, fmt.Sprintf("attempt %d", attempt+1),
-				telemetry.Reveal())
+			report := new(strings.Builder)
 
 			var rerr error
+			ctx, span := Tracer().Start(ctx, fmt.Sprintf("%s: attempt %d", eval, attempt+1),
+				telemetry.Reveal())
 			defer telemetry.End(span, func() error { return rerr })
 
-			report := new(strings.Builder)
 			defer func() { reports[attempt] = report.String() }()
 
 			fmt.Fprintf(report, "## Attempt %d\n", attempt+1)
 			fmt.Fprintln(report)
 
-			eval := w.evaluate(attempt, evalFn)
+			eval := w.evaluate(model, attempt, evalFn)
 
 			evalReport, err := eval.Report(ctx)
 			if err != nil {
@@ -145,16 +160,20 @@ func (w *Workspace) Evaluate(ctx context.Context, eval string) (string, error) {
 }
 
 // Run an evaluation across all known models in parallel.
-func (w *Workspace) EvaluateAllModelsOnce(ctx context.Context, name string) ([]string, error) {
-	reports := make([]string, len(knownModels))
+func (w *Workspace) EvaluateAcrossModels(
+	ctx context.Context,
+	name string,
+	models []string,
+) ([]string, error) {
+	reports := make([]string, len(models))
 	wg := new(sync.WaitGroup)
-	for i, model := range knownModels {
+	for i, model := range models {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			ctx, span := Tracer().Start(ctx, fmt.Sprintf("model: %s", model),
 				telemetry.Reveal())
-			report, err := New(model, 1, w.SystemPrompt).Evaluate(ctx, name)
+			report, err := New(model, w.Attempts, w.SystemPrompt).EvaluateModel(ctx, name, model)
 			telemetry.End(span, func() error { return err })
 			if err != nil {
 				reports[i] = fmt.Sprintf("ERROR: %s", err)
@@ -167,11 +186,11 @@ func (w *Workspace) EvaluateAllModelsOnce(ctx context.Context, name string) ([]s
 	return reports, nil
 }
 
-func (w *Workspace) evaluate(attempt int, evalFn EvalFunc) *dagger.EvalsReport {
+func (w *Workspace) evaluate(model string, attempt int, evalFn EvalFunc) *dagger.EvalsReport {
 	return evalFn(
 		dag.Evals().
+			WithModel(model).
 			WithAttempt(attempt + 1).
-			WithModel(w.Model).
 			WithSystemPrompt(w.SystemPrompt),
 	)
 }
