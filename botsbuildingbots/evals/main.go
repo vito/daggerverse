@@ -72,15 +72,17 @@ func (m *Evals) SingleStateTransition(ctx context.Context) (*Report, error) {
 			WithContainer(
 				dag.Container().
 					From("alpine").
-					WithNewFile("/my-dir/my-file", "im a file"),
+					WithNewFile("/my-dir/my-file", "im a file").
+					WithNewFile("/my-dir/another-file", "im another file"),
 			).
 			WithPrompt("give me the contents of /my-dir/my-file").
 			Loop().
-			WithPrompt("give me /my-dir"),
+			WithPrompt("list the entries in /my-dir within the container"),
 		func(t testing.TB, llm *dagger.LLM) {
-			entries, err := llm.Directory().Entries(ctx)
+			reply, err := llm.LastReply(ctx)
 			require.NoError(t, err)
-			require.Equal(t, []string{"my-file"}, entries)
+			require.Contains(t, reply, "my-file")
+			require.Contains(t, reply, "another-file")
 		})
 }
 
@@ -90,7 +92,7 @@ func (m *Evals) UndoSingle(ctx context.Context) (*Report, error) {
 	return withLLMReport(ctx,
 		m.LLM().
 			WithQuery().
-			WithPrompt("give me a container for PHP 7 development").
+			WithPrompt("give me a minimal container for PHP 7 development").
 			Loop().
 			WithPrompt("now install nano").
 			Loop().
@@ -145,7 +147,7 @@ func (m *Evals) BuildMulti(ctx context.Context) (*Report, error) {
 					WithEnvVariable("BUSTER", fmt.Sprintf("%d-%s", m.Attempt, time.Now())),
 			).
 			WithPrompt("Mount $repo into $ctr, set it as your workdir, and build ./cmd/booklit with CGO_ENABLED=0.").
-			WithPrompt("Return the binary as a File."),
+			WithPrompt("Return the compiled binary."),
 		func(t testing.TB, llm *dagger.LLM) {
 			BuildMultiAssert(ctx, t, llm)
 		})
@@ -172,7 +174,7 @@ func (m *Evals) BuildMultiNoVar(ctx context.Context) (*Report, error) {
 					WithEnvVariable("BUSTER", fmt.Sprintf("%d-%s", m.Attempt, time.Now())),
 			).
 			WithPrompt("Mount my repo into the container, set it as your workdir, and build ./cmd/booklit with CGO_ENABLED=0.").
-			WithPrompt("Return the binary as a File."),
+			WithPrompt("Return the compiled binary."),
 		func(t testing.TB, llm *dagger.LLM) {
 			BuildMultiAssert(ctx, t, llm)
 		})

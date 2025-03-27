@@ -43,7 +43,6 @@ func New(
 func (m *BotsBuildingBots) llm() *dagger.LLM {
 	return dag.LLM(dagger.LLMOpts{Model: m.WriterModel}).
 		WithWorkspace(dag.Workspace(dagger.WorkspaceOpts{
-			Model:        m.EvalModel,
 			Attempts:     m.Attempts,
 			SystemPrompt: m.InitialPrompt,
 		}))
@@ -77,6 +76,16 @@ func (m *BotsBuildingBots) Explore(ctx context.Context) ([]string, error) {
 		WithPrompt(`If an eval fails for all models, don't bother running it again, but if there is partial success, try running it again or with different models.`).
 		WithPrompt(`BEWARE: you will almost certainly hit rate limits. Find something else to do with another model in that case, or back off for a bit.`).
 		WithPrompt(`Keep performing evaluations against various models, and record any interesting findings.`).
+		Workspace().
+		Findings(ctx)
+}
+
+func (m *BotsBuildingBots) Evaluate(ctx context.Context, model string, eval string) ([]string, error) {
+	return m.llm().
+		WithPromptVar("eval", eval).
+		WithPromptVar("model", model).
+		WithPrompt(`You are a QA engineer running an LLM eval against a model`).
+		WithPrompt(`Run the $eval eval against the $model model and analyze the results.`).
 		Workspace().
 		Findings(ctx)
 }
