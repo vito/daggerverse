@@ -4,6 +4,7 @@ import (
 	"context"
 	"dagger/botsbuildingbots/internal/dagger"
 	_ "embed"
+	"fmt"
 )
 
 type BotsBuildingBots struct {
@@ -41,11 +42,17 @@ func New(
 }
 
 func (m *BotsBuildingBots) llm() *dagger.LLM {
-	return dag.LLM(dagger.LLMOpts{Model: m.WriterModel}).
-		WithWorkspace(dag.Workspace(dagger.WorkspaceOpts{
-			Attempts:     m.Attempts,
-			SystemPrompt: m.InitialPrompt,
-		}))
+	return dag.LLM(dagger.LLMOpts{Model: m.WriterModel})
+}
+
+func (m *BotsBuildingBots) env() *dagger.Env {
+	return dag.Env().
+		WithWorkspaceInput("work",
+			dag.Workspace(dagger.WorkspaceOpts{
+				Attempts:     m.Attempts,
+				SystemPrompt: m.InitialPrompt,
+			}),
+			"A space for you to work in.")
 }
 
 func (m *BotsBuildingBots) SystemPrompt(ctx context.Context) (string, error) {
@@ -63,29 +70,45 @@ Your job is to:
 
 You control this loop end-to-end. Do not treat this as a one-shot task. Continue refining until success is achieved.
 `).
-		SetFile("README", m.Scheme).
+		WithEnv(m.env().
+			WithFileInput("README", m.Scheme, "The README to consult for generating your system prompt.").
+			WithWorkspaceOutput("work", "The workspace with the system prompt assigned."),
+		).
 		WithPrompt(`Read the README and generate the best system prompt for it. Keep going until all attempts succeed.`).
-		Workspace().
+		Env().
+		Output("work").
+		AsWorkspace().
 		SystemPrompt(ctx)
 }
 
 func (m *BotsBuildingBots) Explore(ctx context.Context) ([]string, error) {
 	return m.llm().
+		WithEnv(m.env().
+			WithWorkspaceOutput("findings", "The workspace with all of your findings recorded.")).
 		WithPrompt(`You are a quality assurance engineer running a suite of LLM evals and finding any issues that various models have interpreting them.`).
 		WithPrompt(`Focus on exploration. Find evals that work on some models, but not others.`).
 		WithPrompt(`If an eval fails for all models, don't bother running it again, but if there is partial success, try running it again or with different models.`).
 		WithPrompt(`BEWARE: you will almost certainly hit rate limits. Find something else to do with another model in that case, or back off for a bit.`).
 		WithPrompt(`Keep performing evaluations against various models, and record any interesting findings.`).
-		Workspace().
+		Env().
+		Output("findings").
+		AsWorkspace().
 		Findings(ctx)
 }
 
 func (m *BotsBuildingBots) Evaluate(ctx context.Context, model string, eval string) ([]string, error) {
 	return m.llm().
-		WithPromptVar("eval", eval).
-		WithPromptVar("model", model).
+		WithEnv(m.env().
+			WithWorkspaceOutput("findings", "The workspace with all of your findings recorded."),
+		).
 		WithPrompt(`You are a QA engineer running an LLM eval against a model`).
-		WithPrompt(`Run the $eval eval against the $model model and analyze the results.`).
-		Workspace().
+		WithPrompt(
+			fmt.Sprintf(`Run the %q eval against the %q model and analyze the results.`,
+				eval, model,
+			),
+		).
+		Env().
+		Output("findings").
+		AsWorkspace().
 		Findings(ctx)
 }

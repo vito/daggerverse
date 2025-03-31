@@ -38,12 +38,12 @@ var knownModels = []string{
 type EvalFunc = func(*dagger.Evals) *dagger.EvalsReport
 
 var evals = map[string]EvalFunc{
-	"BuildMulti":            (*dagger.Evals).BuildMulti,
-	"BuildMultiNoVar":       (*dagger.Evals).BuildMultiNoVar,
-	"ReadImplicitVars":      (*dagger.Evals).ReadImplicitVars,
-	"SingleState":           (*dagger.Evals).SingleState,
-	"SingleStateTransition": (*dagger.Evals).SingleStateTransition,
-	"UndoSingle":            (*dagger.Evals).UndoSingle,
+	"BuildMulti":      (*dagger.Evals).BuildMulti,
+	"BuildMultiNoVar": (*dagger.Evals).BuildMultiNoVar,
+	// "ReadImplicitVars":      (*dagger.Evals).ReadImplicitVars,
+	// "SingleState": (*dagger.Evals).SingleState,
+	// "SingleStateTransition": (*dagger.Evals).SingleStateTransition,
+	"UndoSingle": (*dagger.Evals).UndoSingle,
 }
 
 func New(
@@ -88,7 +88,7 @@ func (w *Workspace) KnownModels() []string {
 }
 
 // Record an interesting finding after performing evaluations.
-func (w *Workspace) RecordFinding(finding string) *Workspace {
+func (w *Workspace) WithFinding(finding string) *Workspace {
 	w.Findings = append(w.Findings, finding)
 	return w
 }

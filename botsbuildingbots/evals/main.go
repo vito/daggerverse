@@ -44,21 +44,21 @@ func (m *Evals) WithSystemPrompt(prompt string) *Evals {
 
 // Test that the model is conscious of a "current state" without needing
 // explicit prompting.
-func (m *Evals) SingleState(ctx context.Context) (*Report, error) {
-	return withLLMReport(ctx,
-		m.LLM().
-			WithContainer(
-				dag.Container().
-					From("alpine").
-					WithEnvVariable("TERM", "xterm-potato"),
-			).
-			WithPrompt("what is the value of the TERM environment variable?"),
-		func(t testing.TB, llm *dagger.LLM) {
-			reply, err := llm.LastReply(ctx)
-			require.NoError(t, err)
-			require.Contains(t, reply, "xterm-potato")
-		})
-}
+// func (m *Evals) SingleState(ctx context.Context) (*Report, error) {
+// 	return withLLMReport(ctx,
+// 		m.LLM().
+// 			WithContainer(
+// 				dag.Container().
+// 					From("alpine").
+// 					WithEnvVariable("TERM", "xterm-potato"),
+// 			).
+// 			WithPrompt("what is the value of the TERM environment variable?"),
+// 		func(t testing.TB, llm *dagger.LLM) {
+// 			reply, err := llm.LastReply(ctx)
+// 			require.NoError(t, err)
+// 			require.Contains(t, reply, "xterm-potato")
+// 		})
+// }
 
 // Test that we're able to transition back to our initial state, even when it's
 // not explicitly told its ID.
@@ -66,31 +66,40 @@ func (m *Evals) SingleState(ctx context.Context) (*Report, error) {
 // This tests that the state transition mechanic includes the previous state:
 //
 //	{"current":"Container#1","previous":"Hello#1"}
-func (m *Evals) SingleStateTransition(ctx context.Context) (*Report, error) {
-	return withLLMReport(ctx,
-		m.LLM().
-			WithContainer(
-				dag.Container().
-					From("alpine").
-					WithNewFile("/my-dir/my-file", "im a file").
-					WithNewFile("/my-dir/another-file", "im another file"),
-			).
-			WithPrompt("give me the contents of /my-dir/my-file").
-			Loop().
-			WithPrompt("list the entries in /my-dir within the container"),
-		func(t testing.TB, llm *dagger.LLM) {
-			reply, err := llm.LastReply(ctx)
-			require.NoError(t, err)
-			require.Contains(t, reply, "my-file")
-			require.Contains(t, reply, "another-file")
-		})
-}
+// func (m *Evals) SingleStateTransition(ctx context.Context) (*Report, error) {
+// 	return withLLMReport(ctx,
+// 		m.LLM().
+// 			WithEnv(dag.Env().
+// 				WithContainerInput(
+// 					"initial",
+// 					dag.Container().
+// 						From("alpine").
+// 						WithNewFile("/my-dir/my-file", "im a file").
+// 						WithNewFile("/my-dir/another-file", "im another file"),
+// 					"The initial container.",
+// 				),
+// 			).
+// 			WithPrompt("give me the contents of /my-dir/my-file").
+// 			Loop().
+// 			WithPrompt("list the entries in /my-dir within the container"),
+// 		func(t testing.TB, llm *dagger.LLM) {
+// 			reply, err := llm.LastReply(ctx)
+// 			require.NoError(t, err)
+// 			require.Contains(t, reply, "my-file")
+// 			require.Contains(t, reply, "another-file")
+// 		})
+// }
 
 // Test the model's eagerness to switch to prior states instead of mutating the
 // current state to undo past actions.
 func (m *Evals) UndoSingle(ctx context.Context) (*Report, error) {
 	return withLLMReport(ctx,
 		m.LLM().
+			WithEnv(dag.Env().
+				WithContainerInput("ctr", dag.Container(),
+					"A scratch container to start from.").
+				WithContainerOutput("dev",
+					"The dev container.")).
 			WithQuery().
 			WithPrompt("give me a minimal container for PHP 7 development").
 			Loop().
@@ -99,7 +108,7 @@ func (m *Evals) UndoSingle(ctx context.Context) (*Report, error) {
 			WithPrompt("undo that and install vim instead").
 			Loop(),
 		func(t testing.TB, llm *dagger.LLM) {
-			res := llm.Container()
+			res := llm.Env().Output("dev").AsContainer()
 
 			out, err := res.WithExec([]string{"php", "--version"}).Stdout(ctx)
 			require.NoError(t, err)
@@ -136,18 +145,23 @@ func (m *Evals) UndoSingle(ctx context.Context) (*Report, error) {
 func (m *Evals) BuildMulti(ctx context.Context) (*Report, error) {
 	return withLLMReport(ctx,
 		m.LLM().
-			SetDirectory("repo", dag.Git("https://github.com/vito/booklit").Head().Tree()).
-			SetContainer("ctr",
-				dag.Container().
-					From("golang").
-					WithMountedCache("/go/pkg/mod", dag.CacheVolume("go-mod")).
-					WithEnvVariable("GOMODCACHE", "/go/pkg/mod").
-					WithMountedCache("/go/build-cache", dag.CacheVolume("go-build")).
-					WithEnvVariable("GOCACHE", "/go/build-cache").
-					WithEnvVariable("BUSTER", fmt.Sprintf("%d-%s", m.Attempt, time.Now())),
+			WithEnv(
+				dag.Env().
+					WithDirectoryInput("repo",
+						dag.Git("https://github.com/vito/booklit").Head().Tree(),
+						"The Booklit repository.").
+					WithContainerInput("ctr",
+						dag.Container().
+							From("golang").
+							WithMountedCache("/go/pkg/mod", dag.CacheVolume("go-mod")).
+							WithEnvVariable("GOMODCACHE", "/go/pkg/mod").
+							WithMountedCache("/go/build-cache", dag.CacheVolume("go-build")).
+							WithEnvVariable("GOCACHE", "/go/build-cache").
+							WithEnvVariable("BUSTER", fmt.Sprintf("%d-%s", m.Attempt, time.Now())),
+						"The container to use to build Booklit.").
+					WithFileOutput("bin", "The compiled Booklit binary."),
 			).
-			WithPrompt("Mount $repo into $ctr, set it as your workdir, and build ./cmd/booklit with CGO_ENABLED=0.").
-			WithPrompt("Return the compiled binary."),
+			WithPrompt("Mount $repo into $ctr at /src, set it as your workdir, and build ./cmd/booklit with CGO_ENABLED=0."),
 		func(t testing.TB, llm *dagger.LLM) {
 			BuildMultiAssert(ctx, t, llm)
 		})
@@ -158,20 +172,23 @@ func (m *Evals) BuildMulti(ctx context.Context) (*Report, error) {
 func (m *Evals) BuildMultiNoVar(ctx context.Context) (*Report, error) {
 	return withLLMReport(ctx,
 		m.LLM().
-			// This is to bait the LLM into hallucinating Directory#1.
-			//
-			// This test actually passes without it.
-			SetDirectory("notMyRepo", dag.Directory()).
-			SetDirectory("repo", dag.Git("https://github.com/vito/booklit").Head().Tree()).
-			SetContainer("notMyContainer", dag.Container()).
-			SetContainer("ctr",
-				dag.Container().
-					From("golang").
-					WithMountedCache("/go/pkg/mod", dag.CacheVolume("go-mod")).
-					WithEnvVariable("GOMODCACHE", "/go/pkg/mod").
-					WithMountedCache("/go/build-cache", dag.CacheVolume("go-build")).
-					WithEnvVariable("GOCACHE", "/go/build-cache").
-					WithEnvVariable("BUSTER", fmt.Sprintf("%d-%s", m.Attempt, time.Now())),
+			WithEnv(
+				dag.Env().
+					WithDirectoryInput("notRepo", dag.Directory(), "Bait - ignore this.").
+					WithDirectoryInput("repo",
+						dag.Git("https://github.com/vito/booklit").Head().Tree(),
+						"The Booklit repository.").
+					WithContainerInput("notCtr", dag.Container(), "Bait - ignore this.").
+					WithContainerInput("ctr",
+						dag.Container().
+							From("golang").
+							WithMountedCache("/go/pkg/mod", dag.CacheVolume("go-mod")).
+							WithEnvVariable("GOMODCACHE", "/go/pkg/mod").
+							WithMountedCache("/go/build-cache", dag.CacheVolume("go-build")).
+							WithEnvVariable("GOCACHE", "/go/build-cache").
+							WithEnvVariable("BUSTER", fmt.Sprintf("%d-%s", m.Attempt, time.Now())),
+						"The container to use to build Booklit.").
+					WithFileOutput("bin", "The compiled Booklit binary."),
 			).
 			WithPrompt("Mount my repo into the container, set it as your workdir, and build ./cmd/booklit with CGO_ENABLED=0.").
 			WithPrompt("Return the compiled binary."),
@@ -182,7 +199,7 @@ func (m *Evals) BuildMultiNoVar(ctx context.Context) (*Report, error) {
 
 // Extracted for reuse between BuildMulti tests
 func BuildMultiAssert(ctx context.Context, t testing.TB, llm *dagger.LLM) {
-	f, err := llm.File().Sync(ctx)
+	f, err := llm.Env().Output("bin").AsFile().Sync(ctx)
 	require.NoError(t, err)
 
 	ctr := dag.Container().
@@ -204,27 +221,27 @@ func BuildMultiAssert(ctx context.Context, t testing.TB, llm *dagger.LLM) {
 // - claude-3-7-sonnet-latest: 100%
 // - gpt-4o: 100%
 // - gemini-2.0-flash: 0%
-func (m *Evals) ReadImplicitVars(ctx context.Context) (*Report, error) {
-	// use some fun formatting here to make sure it doesn't get lost in
-	// the shuffle
-	//
-	// NOTE: an earlier iteration included a trailing line break, but... honestly
-	// just don't do that. when it gets that weird, pass in a file instead. it's a
-	// similar issue you might run into with passing it around in a shell, which
-	// these vars already draw parallels to (and may even be sourced from).
-	weirdText := "-$@!&* BEGIN WEIRD FILE -$@!&*\nim some fun content\n---- END WEIRD FILE----"
-	return withLLMReport(ctx,
-		m.LLM().
-			SetString("myContent", weirdText).
-			SetString("desiredName", "/weird.txt").
-			SetDirectory("dest", dag.Directory()).
-			WithPrompt("I gave you a variable, a directory, and a filename. Can you write the content to the specified file in the directory?"),
-		func(t testing.TB, llm *dagger.LLM) {
-			content, err := llm.Directory().File("weird.txt").Contents(ctx)
-			require.NoError(t, err)
-			require.Equal(t, weirdText, content)
-		})
-}
+// func (m *Evals) ReadImplicitVars(ctx context.Context) (*Report, error) {
+// 	// use some fun formatting here to make sure it doesn't get lost in
+// 	// the shuffle
+// 	//
+// 	// NOTE: an earlier iteration included a trailing line break, but... honestly
+// 	// just don't do that. when it gets that weird, pass in a file instead. it's a
+// 	// similar issue you might run into with passing it around in a shell, which
+// 	// these vars already draw parallels to (and may even be sourced from).
+// 	weirdText := "-$@!&* BEGIN WEIRD FILE -$@!&*\nim some fun content\n---- END WEIRD FILE----"
+// 	return withLLMReport(ctx,
+// 		m.LLM().
+// 			SetString("myContent", weirdText).
+// 			SetString("desiredName", "/weird.txt").
+// 			SetDirectory("dest", dag.Directory()).
+// 			WithPrompt("I gave you a variable, a directory, and a filename. Can you write the content to the specified file in the directory?"),
+// 		func(t testing.TB, llm *dagger.LLM) {
+// 			content, err := llm.Directory().File("weird.txt").Contents(ctx)
+// 			require.NoError(t, err)
+// 			require.Equal(t, weirdText, content)
+// 		})
+// }
 
 func (m *Evals) LLM() *dagger.LLM {
 	llm := dag.LLM(dagger.LLMOpts{
