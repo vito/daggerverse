@@ -275,7 +275,7 @@ func (m *Evals) ReadImplicitVars(ctx context.Context) (*Report, error) {
 				WithDirectoryInput("dest", dag.Directory(),
 					"The directory in which to write the file.").
 				WithDirectoryOutput("out", "The directory containing the written file.")).
-			WithPrompt("I gave you a variable, a directory, and a filename. Write the content to the specified file in the directory."),
+			WithPrompt("I gave you some content, a directory, and a filename. Write the content to the specified file in the directory."),
 		func(t testing.TB, llm *dagger.LLM) {
 			content, err := llm.Env().
 				Output("out").
