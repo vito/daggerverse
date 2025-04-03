@@ -97,14 +97,14 @@ func (w *Workspace) WithFinding(finding string) *Workspace {
 func (w *Workspace) Evaluate(
 	ctx context.Context,
 	// The evaluation to run.
-	eval string,
+	name string,
 	// The model to evaluate.
 	// +default=""
 	model string,
 ) (_ string, rerr error) {
-	evalFn, ok := evals[eval]
+	evalFn, ok := evals[name]
 	if !ok {
-		return "", fmt.Errorf("unknown evaluation: %s", eval)
+		return "", fmt.Errorf("unknown evaluation: %s", name)
 	}
 
 	reports := make([]string, w.Attempts)
@@ -118,7 +118,7 @@ func (w *Workspace) Evaluate(
 			report := new(strings.Builder)
 
 			var rerr error
-			ctx, span := Tracer().Start(ctx, fmt.Sprintf("%s: attempt %d", eval, attempt+1),
+			ctx, span := Tracer().Start(ctx, fmt.Sprintf("%s: attempt %d", name, attempt+1),
 				telemetry.Reveal())
 			defer telemetry.End(span, func() error { return rerr })
 			stdio := telemetry.SpanStdio(ctx, "")

@@ -96,7 +96,7 @@ func (m *BotsBuildingBots) Explore(ctx context.Context) ([]string, error) {
 		Findings(ctx)
 }
 
-func (m *BotsBuildingBots) Evaluate(ctx context.Context, model string, eval string) ([]string, error) {
+func (m *BotsBuildingBots) Evaluate(ctx context.Context, model string, name string) ([]string, error) {
 	return m.llm().
 		WithEnv(m.env().
 			WithWorkspaceOutput("findings", "The workspace with all of your findings recorded."),
@@ -104,7 +104,7 @@ func (m *BotsBuildingBots) Evaluate(ctx context.Context, model string, eval stri
 		WithPrompt(`You are a QA engineer running an LLM eval against a model`).
 		WithPrompt(
 			fmt.Sprintf(`Run the %q eval against the %q model and analyze the results.`,
-				eval, model,
+				name, model,
 			),
 		).
 		Env().
