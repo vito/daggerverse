@@ -264,7 +264,7 @@ func (m *Evals) ReadImplicitVars(ctx context.Context) (*Report, error) {
 	// just don't do that. when it gets that weird, pass in a file instead. it's a
 	// similar issue you might run into with passing it around in a shell, which
 	// these vars already draw parallels to (and may even be sourced from).
-	weirdText := "-$@!&* BEGIN WEIRD FILE -$@!&*\nim some fun content\n---- END WEIRD FILE----"
+	weirdText := "I'm a strawberry!"
 	return withLLMReport(ctx,
 		m.LLM().
 			WithEnv(dag.Env().
