@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime/debug"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -42,6 +43,71 @@ func (m *Evals) WithSystemPrompt(prompt string) *Evals {
 	return m
 }
 
+// Test manual intervention allowing the prompt to succeed.
+func (m *Evals) LifeAlert(ctx context.Context) (*Report, error) {
+	return withLLMReport(ctx,
+		m.LLM().
+			WithEnv(dag.Env().
+				WithDirectoryInput("dir", dag.Directory(), "A directory to write a file into.").
+				WithFileOutput("file", "A file containing knowledge you don't have."),
+			).
+			WithPrompt("Ask me what to write to the file."),
+		func(t testing.TB, llm *dagger.LLM) {
+			reply, err := llm.Env().Output("file").AsFile().Contents(ctx)
+			require.NoError(t, err)
+			require.Contains(t, reply, "potato")
+		})
+}
+
+// Test basic prompting.
+func (m *Evals) Basic(ctx context.Context) (*Report, error) {
+	return withLLMReport(ctx,
+		m.LLM().
+			WithPrompt("What is 2 + 2? Respond with a single number."),
+		func(t testing.TB, llm *dagger.LLM) {
+			reply, err := llm.LastReply(ctx)
+			require.NoError(t, err)
+			require.Contains(t, reply, "4")
+		})
+}
+
+// Models smart enough to follow instructions like 'do X three times.'
+var SmartModels = []string{
+	"gpt-4o",
+	"gemini-2.0-flash",
+	"claude-3-5-haiku-latest",
+	"claude-3-5-sonnet-latest",
+	"claude-3-7-sonnet-latest",
+}
+
+// Test the common workspace pattern.
+func (m *Evals) WorkspacePattern(ctx context.Context) (*Report, error) {
+	return withLLMReport(ctx,
+		m.LLM().
+			WithEnv(dag.Env().
+				WithTestspaceInput("dir", dag.Testspace(m.Attempt), "Your workspace for performing research.").
+				WithTestspaceOutput("out", "The workspace containing your findings."),
+			).
+			WithPrompt(`Research and record three findings.`),
+		func(t testing.TB, llm *dagger.LLM) {
+			findings, err := llm.Env().Output("out").AsTestspace().Findings(ctx)
+			require.NoError(t, err)
+			model, err := llm.Model(ctx)
+			require.NoError(t, err)
+			if slices.Contains(SmartModels, model) {
+				require.Len(t, findings, 3)
+				all := map[string]int{}
+				for _, f := range findings {
+					all[f]++
+				}
+				require.Len(t, all, 3, "all findings should be unique")
+			} else {
+				// can't expect much from local models atm
+				require.NotEmpty(t, findings)
+			}
+		})
+}
+
 // Test that the model is conscious of a "current state" without needing
 // explicit prompting.
 // func (m *Evals) SingleState(ctx context.Context) (*Report, error) {
@@ -60,47 +126,16 @@ func (m *Evals) WithSystemPrompt(prompt string) *Evals {
 // 		})
 // }
 
-// Test that we're able to transition back to our initial state, even when it's
-// not explicitly told its ID.
-//
-// This tests that the state transition mechanic includes the previous state:
-//
-//	{"current":"Container#1","previous":"Hello#1"}
-// func (m *Evals) SingleStateTransition(ctx context.Context) (*Report, error) {
-// 	return withLLMReport(ctx,
-// 		m.LLM().
-// 			WithEnv(dag.Env().
-// 				WithContainerInput(
-// 					"initial",
-// 					dag.Container().
-// 						From("alpine").
-// 						WithNewFile("/my-dir/my-file", "im a file").
-// 						WithNewFile("/my-dir/another-file", "im another file"),
-// 					"The initial container.",
-// 				),
-// 			).
-// 			WithPrompt("give me the contents of /my-dir/my-file").
-// 			Loop().
-// 			WithPrompt("list the entries in /my-dir within the container"),
-// 		func(t testing.TB, llm *dagger.LLM) {
-// 			reply, err := llm.LastReply(ctx)
-// 			require.NoError(t, err)
-// 			require.Contains(t, reply, "my-file")
-// 			require.Contains(t, reply, "another-file")
-// 		})
-// }
-
 // Test the model's eagerness to switch to prior states instead of mutating the
 // current state to undo past actions.
-func (m *Evals) UndoSingle(ctx context.Context) (*Report, error) {
+func (m *Evals) UndoChanges(ctx context.Context) (*Report, error) {
 	return withLLMReport(ctx,
 		m.LLM().
 			WithEnv(dag.Env().
-				WithContainerInput("ctr", dag.Container(),
-					"A scratch container to start from.").
-				WithContainerOutput("dev",
-					"The dev container.")).
-			WithQuery().
+				WithContainerInput("ctr",
+					dag.Container().
+						WithEnvVariable("BUSTER", fmt.Sprintf("%d-%s", m.Attempt, time.Now())),
+					"A scratch container to start from.")).
 			WithPrompt("give me a minimal container for PHP 7 development").
 			Loop().
 			WithPrompt("now install nano").
@@ -108,7 +143,7 @@ func (m *Evals) UndoSingle(ctx context.Context) (*Report, error) {
 			WithPrompt("undo that and install vim instead").
 			Loop(),
 		func(t testing.TB, llm *dagger.LLM) {
-			res := llm.Env().Output("dev").AsContainer()
+			res := llm.BindResult("_").AsContainer()
 
 			out, err := res.WithExec([]string{"php", "--version"}).Stdout(ctx)
 			require.NoError(t, err)
@@ -221,27 +256,36 @@ func BuildMultiAssert(ctx context.Context, t testing.TB, llm *dagger.LLM) {
 // - claude-3-7-sonnet-latest: 100%
 // - gpt-4o: 100%
 // - gemini-2.0-flash: 0%
-// func (m *Evals) ReadImplicitVars(ctx context.Context) (*Report, error) {
-// 	// use some fun formatting here to make sure it doesn't get lost in
-// 	// the shuffle
-// 	//
-// 	// NOTE: an earlier iteration included a trailing line break, but... honestly
-// 	// just don't do that. when it gets that weird, pass in a file instead. it's a
-// 	// similar issue you might run into with passing it around in a shell, which
-// 	// these vars already draw parallels to (and may even be sourced from).
-// 	weirdText := "-$@!&* BEGIN WEIRD FILE -$@!&*\nim some fun content\n---- END WEIRD FILE----"
-// 	return withLLMReport(ctx,
-// 		m.LLM().
-// 			SetString("myContent", weirdText).
-// 			SetString("desiredName", "/weird.txt").
-// 			SetDirectory("dest", dag.Directory()).
-// 			WithPrompt("I gave you a variable, a directory, and a filename. Can you write the content to the specified file in the directory?"),
-// 		func(t testing.TB, llm *dagger.LLM) {
-// 			content, err := llm.Directory().File("weird.txt").Contents(ctx)
-// 			require.NoError(t, err)
-// 			require.Equal(t, weirdText, content)
-// 		})
-// }
+func (m *Evals) ReadImplicitVars(ctx context.Context) (*Report, error) {
+	// use some fun formatting here to make sure it doesn't get lost in
+	// the shuffle
+	//
+	// NOTE: an earlier iteration included a trailing line break, but... honestly
+	// just don't do that. when it gets that weird, pass in a file instead. it's a
+	// similar issue you might run into with passing it around in a shell, which
+	// these vars already draw parallels to (and may even be sourced from).
+	weirdText := "-$@!&* BEGIN WEIRD FILE -$@!&*\nim some fun content\n---- END WEIRD FILE----"
+	return withLLMReport(ctx,
+		m.LLM().
+			WithEnv(dag.Env().
+				WithStringInput("myContent", weirdText,
+					"The content to write.").
+				WithStringInput("desiredName", "/weird.txt",
+					"The name of the file to write to.").
+				WithDirectoryInput("dest", dag.Directory(),
+					"The directory in which to write the file.").
+				WithDirectoryOutput("out", "The directory containing the written file.")).
+			WithPrompt("I gave you a variable, a directory, and a filename. Write the content to the specified file in the directory."),
+		func(t testing.TB, llm *dagger.LLM) {
+			content, err := llm.Env().
+				Output("out").
+				AsDirectory().
+				File("weird.txt").
+				Contents(ctx)
+			require.NoError(t, err)
+			require.Equal(t, weirdText, content)
+		})
+}
 
 func (m *Evals) LLM() *dagger.LLM {
 	llm := dag.LLM(dagger.LLMOpts{

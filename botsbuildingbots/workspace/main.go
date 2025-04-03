@@ -38,12 +38,12 @@ var knownModels = []string{
 type EvalFunc = func(*dagger.Evals) *dagger.EvalsReport
 
 var evals = map[string]EvalFunc{
-	"BuildMulti":      (*dagger.Evals).BuildMulti,
-	"BuildMultiNoVar": (*dagger.Evals).BuildMultiNoVar,
-	// "ReadImplicitVars":      (*dagger.Evals).ReadImplicitVars,
-	// "SingleState": (*dagger.Evals).SingleState,
-	// "SingleStateTransition": (*dagger.Evals).SingleStateTransition,
-	"UndoSingle": (*dagger.Evals).UndoSingle,
+	"BuildMulti":       (*dagger.Evals).BuildMulti,
+	"BuildMultiNoVar":  (*dagger.Evals).BuildMultiNoVar,
+	"Basic":            (*dagger.Evals).Basic,
+	"WorkspacePattern": (*dagger.Evals).WorkspacePattern,
+	"ReadImplicitVars": (*dagger.Evals).ReadImplicitVars,
+	"UndoChanges":      (*dagger.Evals).UndoChanges,
 }
 
 func New(
