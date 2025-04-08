@@ -1,11 +1,14 @@
 {
   "name": "docker",
-  "sdk": "go",
+  "engineVersion": "v0.18.2",
+  "sdk": {
+    "source": "go"
+  },
   "dependencies": [
     {
       "name": "proxy",
-      "source": "github.com/kpenfound/dagger-modules/proxy@053eeb803f87005cf04ae3ad6cc4bde6031b4d35"
+      "source": "github.com/kpenfound/dagger-modules/proxy@053eeb803f87005cf04ae3ad6cc4bde6031b4d35",
+      "pin": "053eeb803f87005cf04ae3ad6cc4bde6031b4d35"
     }
-  ],
-  "source": "."
+  ]
 }
