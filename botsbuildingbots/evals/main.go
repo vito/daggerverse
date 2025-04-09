@@ -340,15 +340,20 @@ func withLLMReport(
 		}()
 		check(t, llm)
 	}())
+
+	finalMessage := "<UNEXPECTED>"
 	if t.Failed() {
+		finalMessage = "FAILED"
 		fmt.Fprintln(report, "Evaluation failed:")
 		fmt.Fprintln(report)
 		fmt.Fprintln(report, t.Logs())
 	} else if t.Skipped() {
+		finalMessage = "SKIPPED"
 		fmt.Fprintln(report, "Evaluation skipped:")
 		fmt.Fprintln(report)
 		fmt.Fprintln(report, t.Logs())
 	} else {
+		finalMessage = "SUCCESS"
 		succeeded = true
 	}
 
@@ -375,6 +380,9 @@ func withLLMReport(
 	fmt.Fprintln(report)
 	fmt.Fprintln(report, "* Input Tokens:", inputTokens)
 	fmt.Fprintln(report, "* Output Tokens:", outputTokens)
+	fmt.Fprintln(report)
+	fmt.Fprintln(report)
+	fmt.Fprintln(report, finalMessage)
 
 	return &Report{
 		Succeeded: succeeded,
