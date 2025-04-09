@@ -1,5 +1,7 @@
 package main
 
+import "main/internal/dagger"
+
 // Docker exposes APIs for using Docker and Docker related tools.
 type Docker struct{}
 
@@ -10,7 +12,7 @@ func (m *Docker) Daemon() *Daemon {
 
 // Compose returns an API for using Docker Compose.
 func (m *Docker) Compose(
-	dir *Directory,
+	dir *dagger.Directory,
 	// +optional
 	// +default=["docker-compose.yml"]
 	files []string,
