@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strconv"
 
+	"main/internal/dagger"
+
 	"github.com/compose-spec/compose-go/loader"
 	"github.com/compose-spec/compose-go/types"
 )
@@ -15,7 +17,7 @@ import (
 // Compose is an API for using Docker Compose.
 type Compose struct {
 	// The directory to use as the context for the Compose project.
-	Dir *Directory
+	Dir *dagger.Directory
 
 	// The Compose config files to use, within the directory.
 	Files []string
@@ -42,7 +44,7 @@ func (m *Compose) WithEnv(name, val string) *Compose {
 }
 
 // All returns a proxy service that forwards traffic to all defined services.
-func (m *Compose) All(ctx context.Context) (*Service, error) {
+func (m *Compose) All(ctx context.Context) (*dagger.Service, error) {
 	env := make(types.Mapping)
 	for _, e := range m.Env {
 		env[e.Name] = e.Value
@@ -110,23 +112,23 @@ func (m *Compose) All(ctx context.Context) (*Service, error) {
 	return proxy.Service(), nil
 }
 
-func (m *Compose) convert(project *types.Project, svc types.ServiceConfig) (*Service, error) {
-	ctr := dag.Pipeline(svc.Name).Container()
+func (m *Compose) convert(project *types.Project, svc types.ServiceConfig) (*dagger.Service, error) {
+	ctr := dag.Container()
 
 	if svc.Image != "" {
 		ctr = ctr.From(svc.Image)
 	} else if svc.Build != nil {
-		args := []BuildArg{}
+		args := []dagger.BuildArg{}
 		for name, val := range svc.Build.Args {
 			if val != nil {
-				args = append(args, BuildArg{
+				args = append(args, dagger.BuildArg{
 					Name:  name,
 					Value: *val,
 				})
 			}
 		}
 
-		ctr = ctr.Build(m.Dir.Directory(svc.Build.Context), ContainerBuildOpts{
+		ctr = ctr.Build(m.Dir.Directory(svc.Build.Context), dagger.ContainerBuildOpts{
 			Dockerfile: svc.Build.Dockerfile,
 			BuildArgs:  args,
 			Target:     svc.Build.Target,
@@ -151,17 +153,17 @@ func (m *Compose) convert(project *types.Project, svc types.ServiceConfig) (*Ser
 	for _, port := range svc.Ports {
 		switch port.Mode {
 		case "ingress":
-			protocol := Tcp
+			protocol := dagger.NetworkProtocolTcp
 			switch port.Protocol {
 			case "udp":
-				protocol = Udp
+				protocol = dagger.NetworkProtocolUdp
 			case "", "tcp":
-				protocol = Tcp
+				protocol = dagger.NetworkProtocolTcp
 			default:
 				return nil, fmt.Errorf("protocol %s not supported", port.Protocol)
 			}
 
-			ctr = ctr.WithExposedPort(int(port.Target), ContainerWithExposedPortOpts{
+			ctr = ctr.WithExposedPort(int(port.Target), dagger.ContainerWithExposedPortOpts{
 				Protocol: protocol,
 			})
 		default:
@@ -203,13 +205,10 @@ func (m *Compose) convert(project *types.Project, svc types.ServiceConfig) (*Ser
 		ctr = ctr.WithServiceBinding(depName, svc)
 	}
 
-	var opts ContainerWithExecOpts
+	var opts dagger.ContainerWithExecOpts
 	if svc.Privileged {
 		opts.InsecureRootCapabilities = true
 	}
-
-	// Show service containers by default.
-	ctr = ctr.WithFocus()
 
 	ctr = ctr.WithExec(svc.Command, opts)
 
