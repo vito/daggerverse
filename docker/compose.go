@@ -23,12 +23,12 @@ type Compose struct {
 	Files []string
 
 	// Environment variables to interpolate into the Compose config files.
-	Env []Env
+	Env []EnvVar
 }
 
-// Env represents an environment variable to interpolate into the Compose config
+// EnvVar represents an environment variable to interpolate into the Compose config
 // files.
-type Env struct {
+type EnvVar struct {
 	Name  string
 	Value string
 }
@@ -36,7 +36,7 @@ type Env struct {
 // WithEnv sets an environment variable that may be interpolated into the
 // Compose config files.
 func (m *Compose) WithEnv(name, val string) *Compose {
-	m.Env = append(m.Env, Env{
+	m.Env = append(m.Env, EnvVar{
 		Name:  name,
 		Value: val,
 	})
