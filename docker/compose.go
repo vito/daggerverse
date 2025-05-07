@@ -209,15 +209,9 @@ func (m *Compose) convert(project *types.Project, svc types.ServiceConfig) (*dag
 		ctr = ctr.WithEntrypoint(svc.Entrypoint)
 	}
 
-	opts := dagger.ContainerWithExecOpts{
-		UseEntrypoint: true,
-	}
-
-	if svc.Privileged {
-		opts.InsecureRootCapabilities = true
-	}
-
-	ctr = ctr.WithExec(svc.Command, opts)
-
-	return ctr.AsService(), nil
+	return ctr.AsService(dagger.ContainerAsServiceOpts{
+		Args:                     svc.Command,
+		UseEntrypoint:            true,
+		InsecureRootCapabilities: svc.Privileged,
+	}), nil
 }
