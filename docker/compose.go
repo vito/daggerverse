@@ -205,7 +205,14 @@ func (m *Compose) convert(project *types.Project, svc types.ServiceConfig) (*dag
 		ctr = ctr.WithServiceBinding(depName, svc)
 	}
 
-	var opts dagger.ContainerWithExecOpts
+	if !svc.Entrypoint.IsZero() {
+		ctr = ctr.WithEntrypoint(svc.Entrypoint)
+	}
+
+	opts := dagger.ContainerWithExecOpts{
+		UseEntrypoint: true,
+	}
+
 	if svc.Privileged {
 		opts.InsecureRootCapabilities = true
 	}
