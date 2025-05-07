@@ -39,15 +39,14 @@ func (m *Daemon) Service() *dagger.Service {
 		ctr = ctr.WithMountedCache("/var/lib/docker", m.Cache)
 	}
 
-	ctr = ctr.WithExec([]string{
-		"dockerd",                   // this appears to be load-bearing
-		"--tls=false",               // set a flag explicitly to disable TLS
-		"--host=tcp://0.0.0.0:2375", // listen on all interfaces
-	}, dagger.ContainerWithExecOpts{
-		InsecureRootCapabilities: true,
-	})
-
 	ctr = ctr.WithExposedPort(2375)
 
-	return ctr.AsService()
+	return ctr.AsService(dagger.ContainerAsServiceOpts{
+		Args: []string{
+			"dockerd",                   // this appears to be load-bearing
+			"--tls=false",               // set a flag explicitly to disable TLS
+			"--host=tcp://0.0.0.0:2375", // listen on all interfaces
+		},
+		InsecureRootCapabilities: true,
+	})
 }
