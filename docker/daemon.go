@@ -48,5 +48,6 @@ func (m *Daemon) Service() *dagger.Service {
 			"--host=tcp://0.0.0.0:2375", // listen on all interfaces
 		},
 		InsecureRootCapabilities: true,
+		UseEntrypoint: true,
 	})
 }
