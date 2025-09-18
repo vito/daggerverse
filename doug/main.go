@@ -83,7 +83,7 @@ func (d *Doug) Agent(ctx context.Context, base *dagger.LLM) (*dagger.LLM, error)
 	return base.
 		WithEnv(
 			base.Env().
-				WithModule(dag.CurrentModule().Meta()).
+				WithCurrentModule().
 				WithStringInput("TODOs", "", "Your TODO list")).
 		WithSystemPrompt(systemPrompt).
 		WithSystemPrompt(reminderPrompt), nil
