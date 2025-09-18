@@ -1,6 +1,6 @@
 {
   "name": "doug",
-  "engineVersion": "v0.18.19-250918133513-9066690bf5d8",
+  "engineVersion": "v0.18.19-010101000000-dev-5f9e455b2beb",
   "sdk": {
     "source": "go"
   },
@@ -8,7 +8,7 @@
     {
       "name": "wolfi",
       "source": "github.com/dagger/dagger/modules/wolfi",
-      "pin": "b9a64f6bf2dff6e9c851b9b5a73d569c163f8fa2"
+      "pin": "f540bb83cb499af3f8ca2b7ea8a29dea07f7af7b"
     }
   ]
 }

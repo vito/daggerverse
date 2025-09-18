@@ -23,7 +23,7 @@ func (e *AndOperator) Name() string {
 
 func (e *AndOperator) Source() *dagger.Directory {
 	return dag.Git("https://github.com/vito/dang").
-		Commit("52a78ba8b14c1dbdaee033aeca1ef99706caf302").
+		Commit("bcd9affe6f9d2d266d88ceae12a94b17d29e0917").
 		Tree()
 }
 

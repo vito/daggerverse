@@ -1,3 +1,5 @@
+// A Dagger-native sandboxed coding agent.
+
 package main
 
 import (
@@ -129,14 +131,13 @@ func (d *Doug) Bash(ctx context.Context, command string) (*dagger.Changeset, err
 Reads a file from the project directory.
 
 HOW TO USE THIS TOOL:
-- Reads the first 2000 lines by default
-- Each line is prefixed with a line number followed by an arrow (→).
-	Everything that follows the arrow is the literal content of the line.
-- You can specify an offset and limit to read line regions of a large file
-- If the file contents are empty, you will receive a warning.
-- If multiple files are interesting, you can read them all at once using multiple tool calls.
+  - Reads the first 2000 lines by default
+  - Each line is prefixed with a line number followed by an arrow (→).
+    Everything that follows the arrow is the literal content of the line.
+  - You can specify an offset and limit to read line regions of a large file
+  - If the file contents are empty, you will receive a warning.
+  - If multiple files are interesting, you can read them all at once using multiple tool calls.
 */
-// Read a file from the working directory
 func (d *Doug) ReadFile(ctx context.Context, filePath string, offset *int, limit *int) (string, error) {
 	if limit == nil {
 		defaultLimit := 2000
@@ -333,8 +334,8 @@ TIPS:
 - Use the BasicShell tool to verify the correct location when creating new files
 - Combine with Glob and Grep tools to find and modify multiple files
 */
-func (d *Doug) Write(ctx context.Context, path, contents string) (*dagger.Env, error) {
-	return dag.CurrentEnv().WithWorkspace(d.Source.WithNewFile(path, contents)), nil
+func (d *Doug) Write(path, contents string) *dagger.Changeset {
+	return d.Source.WithNewFile(path, contents).Changes(d.Source)
 }
 
 // Fast file pattern matching tool that finds files by name and pattern, returning matching paths sorted by modification time (newest first).
@@ -373,7 +374,7 @@ func (d *Doug) Write(ctx context.Context, path, contents string) (*dagger.Env, e
 // - When doing iterative exploration that may require multiple rounds of searching, consider using the Task tool instead
 // - Always check if results are truncated and refine your search pattern if needed
 func (d *Doug) Glob(ctx context.Context, pattern string) error {
-	result, err := dag.CurrentEnv().Workspace().Glob(ctx, pattern)
+	result, err := d.Source.Glob(ctx, pattern)
 	if err != nil {
 		return err
 	}
@@ -478,7 +479,7 @@ func (d *Doug) Grep(ctx context.Context, pattern string, literalText *bool, path
 		opts.Limit = 1000
 	}
 
-	matches, err := dag.CurrentEnv().Workspace().Search(ctx, pattern, opts)
+	matches, err := d.Source.Search(ctx, pattern, opts)
 	if err != nil {
 		return "", err
 	}
@@ -509,14 +510,13 @@ func (d *Doug) Task(ctx context.Context, description, prompt string) (string, er
 		return "", err
 	}
 
-	env := dag.CurrentEnv()
-	reminderPrompt, err := d.reminderPrompt(ctx, env.Workspace())
+	reminderPrompt, err := d.reminderPrompt(ctx, d.Source)
 	if err != nil {
 		return "", err
 	}
 
 	return dag.LLM().
-		WithEnv(env.WithoutOutputs()).
+		WithEnv(dag.CurrentEnv().WithoutOutputs()).
 		WithBlockedFunction("Doug", "task").
 		WithoutDefaultSystemPrompt().
 		WithSystemPrompt(systemPrompt).
