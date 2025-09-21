@@ -23,20 +23,39 @@ const MaxResponseLength = 30000
 // Doug coding agent module
 type Doug struct {
 	// +private
-	Source *dagger.Directory
+	Workspace *dagger.Directory
+	// +private
+	Sandbox *dagger.Container
+	// +private
+	SandboxPackages []string
 }
 
 func New(
-	// +defaultPath="/"
-	source *dagger.Directory,
+	// The workspace for the agent (i.e. the source code to edit).
+	// +optional
+	workspace *dagger.Directory,
+	// Additional packages to install in the container sandbox for the Bash tool.
+	// +optional
+	sandboxPackages []string,
+	// A custom sandbox for the Bash tool.
+	// +optional
+	sandbox *dagger.Container,
 ) *Doug {
-	return &Doug{Source: source}
+	if workspace == nil {
+		workspace = dag.Directory()
+	}
+	return &Doug{
+		Workspace:       workspace,
+		Sandbox:         sandbox,
+		SandboxPackages: sandboxPackages,
+	}
 }
 
 // A CLI friendly entrypoint for starting a coding agent developing in a workdir.
 func (d *Doug) Dev(
 	ctx context.Context,
 	source *dagger.Directory,
+	// A module providing tools for the agent.
 	// +optional
 	module *dagger.Module,
 ) (*dagger.LLM, error) {
@@ -101,11 +120,15 @@ USAGE NOTES:
     Use the ReadLogs tool when necessary to read more.
 */
 func (d *Doug) Bash(ctx context.Context, command string) (*dagger.Changeset, error) {
-	cmd := dag.Wolfi().
-		Container(dagger.WolfiContainerOpts{
-			Packages: []string{"bash", "git"},
-		}).
-		WithMountedDirectory("/workdir", d.Source).
+	sandbox := d.Sandbox
+	if sandbox == nil {
+		sandbox = dag.Wolfi().
+			Container(dagger.WolfiContainerOpts{
+				Packages: append(d.SandboxPackages, "bash", "git"),
+			})
+	}
+	cmd := sandbox.
+		WithMountedDirectory("/workdir", d.Workspace).
 		WithWorkdir("/workdir").
 		WithExec([]string{"bash", "-c", command}, dagger.ContainerWithExecOpts{
 			ExperimentalPrivilegedNesting: true,
@@ -124,7 +147,7 @@ func (d *Doug) Bash(ctx context.Context, command string) (*dagger.Changeset, err
 		fmt.Println("Command completed successfully.")
 	}
 
-	return cmd.Directory("/workdir").Changes(d.Source), nil
+	return cmd.Directory("/workdir").Changes(d.Workspace), nil
 }
 
 /*
@@ -151,7 +174,7 @@ func (d *Doug) ReadFile(ctx context.Context, filePath string, offset *int, limit
 		opts.OffsetLines = *offset
 	}
 
-	contents, err := d.Source.File(filePath).Contents(ctx, opts)
+	contents, err := d.Workspace.File(filePath).Contents(ctx, opts)
 	if err != nil {
 		return "", err
 	}
@@ -231,7 +254,7 @@ func (d *Doug) EditFile(ctx context.Context, filePath, oldString, newString stri
 		replaceAll = &defaultReplaceAll
 	}
 
-	before := d.Source.File(filePath)
+	before := d.Workspace.File(filePath)
 
 	after := before.WithReplaced(oldString, newString, dagger.FileWithReplacedOpts{
 		All: *replaceAll,
@@ -257,7 +280,7 @@ func (d *Doug) EditFile(ctx context.Context, filePath, oldString, newString stri
 		return nil, err
 	}
 
-	return d.Source.WithFile(filePath, after).Changes(d.Source), nil
+	return d.Workspace.WithFile(filePath, after).Changes(d.Workspace), nil
 }
 
 // taken from chroma's TTY formatter
@@ -335,7 +358,7 @@ TIPS:
 - Combine with Glob and Grep tools to find and modify multiple files
 */
 func (d *Doug) Write(path, contents string) *dagger.Changeset {
-	return d.Source.WithNewFile(path, contents).Changes(d.Source)
+	return d.Workspace.WithNewFile(path, contents).Changes(d.Workspace)
 }
 
 // Fast file pattern matching tool that finds files by name and pattern, returning matching paths sorted by modification time (newest first).
@@ -374,7 +397,7 @@ func (d *Doug) Write(path, contents string) *dagger.Changeset {
 // - When doing iterative exploration that may require multiple rounds of searching, consider using the Task tool instead
 // - Always check if results are truncated and refine your search pattern if needed
 func (d *Doug) Glob(ctx context.Context, pattern string) error {
-	result, err := d.Source.Glob(ctx, pattern)
+	result, err := d.Workspace.Glob(ctx, pattern)
 	if err != nil {
 		return err
 	}
@@ -479,7 +502,7 @@ func (d *Doug) Grep(ctx context.Context, pattern string, literalText *bool, path
 		opts.Limit = 1000
 	}
 
-	matches, err := d.Source.Search(ctx, pattern, opts)
+	matches, err := d.Workspace.Search(ctx, pattern, opts)
 	if err != nil {
 		return "", err
 	}
@@ -510,7 +533,7 @@ func (d *Doug) Task(ctx context.Context, description, prompt string) (string, er
 		return "", err
 	}
 
-	reminderPrompt, err := d.reminderPrompt(ctx, d.Source)
+	reminderPrompt, err := d.reminderPrompt(ctx, d.Workspace)
 	if err != nil {
 		return "", err
 	}
