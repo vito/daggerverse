@@ -10,7 +10,7 @@ require (
 	github.com/iancoleman/strcase v0.3.0
 	github.com/lmittmann/tint v1.0.4
 	github.com/vektah/gqlparser/v2 v2.5.30
-	github.com/vito/bass v0.12.1-0.20250921090032-9276dab8d842
+	github.com/vito/bass v0.12.1-0.20250921091837-430077ed6646
 	go.uber.org/zap v1.27.0
 	golang.org/x/sync v0.17.0
 )

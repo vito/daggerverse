@@ -18,7 +18,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-const Golang = "golang:1.23"
+const Golang = "golang:1"
 
 func New() *BassSdk {
 	return &BassSdk{
