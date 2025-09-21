@@ -38,7 +38,7 @@ func (m *Browserify) Bundle() *dagger.File {
 	for _, pkg := range m.Packages {
 		installPackages = append(installPackages, fmt.Sprintf("%s@%s", pkg.Name, pkg.Version))
 	}
-	return dag.Apko().Wolfi([]string{"npm"}).
+	return dag.Apko().Wolfi([]string{"nodejs", "npm"}).
 		WithExec([]string{"npm", "install", "-g", "browserify"}).
 		WithEnvVariable("PATH", "/usr/local/bin:$PATH", dagger.ContainerWithEnvVariableOpts{
 			Expand: true,

@@ -1,12 +1,13 @@
 {
   "name": "browserify",
-  "sdk": "go",
+  "engineVersion": "v0.18.19",
+  "sdk": {
+    "source": "go"
+  },
   "dependencies": [
     {
       "name": "apko",
       "source": "../apko"
     }
-  ],
-  "source": ".",
-  "engineVersion": "v0.13.4-241016112623-6e0932babdf5"
+  ]
 }
