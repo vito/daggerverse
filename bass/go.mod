@@ -5,15 +5,18 @@ go 1.24.0
 require (
 	github.com/99designs/gqlgen v0.17.79
 	github.com/Khan/genqlient v0.8.1
+	github.com/dagger/testctx v0.0.4
+	github.com/dagger/testctx/oteltest v0.0.1
 	github.com/iancoleman/strcase v0.3.0
 	github.com/lmittmann/tint v1.0.4
 	github.com/vektah/gqlparser/v2 v2.5.30
-	github.com/vito/bass v0.12.1-0.20250130025852-f5df5959e93d
+	github.com/vito/bass v0.12.1-0.20250921090032-9276dab8d842
 	go.uber.org/zap v1.27.0
 	golang.org/x/sync v0.17.0
 )
 
 require (
+	dagger.io/dagger v0.18.19 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa // indirect
 )

@@ -11,9 +11,11 @@ import (
 	"dagger/bass/internal/telemetry"
 	"dagger/bass/runtime"
 
+	"github.com/dagger/testctx"
+	"github.com/dagger/testctx/oteltest"
 	"github.com/vito/bass/pkg/bass"
 	"github.com/vito/bass/pkg/runtimes"
-	"github.com/vito/bass/pkg/testctx"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const Golang = "golang:1.23"
@@ -127,14 +129,15 @@ func (t *BassSdk) Test(ctx context.Context) error {
 		{
 			Name: "TestRuntime",
 			F: func(t *testing.T) {
-				tc := testctx.New(ctx, t)
-				for _, middleware := range []testctx.MiddlewareT{
-					testctx.WithParallel,
-					testctx.WithOTelLogging[*testing.T](telemetry.Logger(ctx, "dagger.io/sdk.go")),
-					testctx.WithOTelTracing[*testing.T](Tracer()),
-				} {
-					tc = middleware(tc)
-				}
+				tc := testctx.New(t,
+					testctx.WithParallel(),
+					oteltest.WithLogging[*testing.T](oteltest.LogConfig{
+						LoggerProvider: telemetry.LoggerProvider(ctx),
+					}),
+					oteltest.WithTracing[*testing.T](oteltest.TraceConfig{
+						TracerProvider: trace.SpanFromContext(ctx).TracerProvider(),
+					})).
+					WithContext(ctx)
 				runtimes.Suite(tc.Context(), tc, bass.RuntimeConfig{
 					Platform: bass.LinuxPlatform,
 					Runtime:  runtime.Name,

@@ -30,8 +30,8 @@ cloud.google.com/go/storage v1.5.0/go.mod h1:tpKbwo567HUNpVclU5sGELwQWBDZ8gh0Zeo
 cloud.google.com/go/storage v1.6.0/go.mod h1:N7U0C8pVQ/+NIKOBQyamJIeKQKkZ+mxpohlUTyfDhBk=
 cloud.google.com/go/storage v1.8.0/go.mod h1:Wv1Oy7z6Yz3DshWRJFhqM/UCfaWIRTdp0RXyy7KQOVs=
 cloud.google.com/go/storage v1.10.0/go.mod h1:FLPqc6j+Ki4BU591ie1oL6qBQGu2Bl/tZ9ullr3+Kg0=
-dagger.io/dagger v0.15.3 h1:Ec1wWjan+qZYeuXG533bDYLb9xqa5uNWYztndfBj/b0=
-dagger.io/dagger v0.15.3/go.mod h1:4fSn1DGrrW1pNWf8KNMYZkoecu+QI+w9LxkrfWkEr8M=
+dagger.io/dagger v0.18.19 h1:P2XobFwYJOh+CTUfRIry85wF93M4MeUqZQcL1RMN6hk=
+dagger.io/dagger v0.18.19/go.mod h1:NVjJFRJ4h1IlpFSRBt8cEVQh0r1n23tONo8ZBgS3cUw=
 dmitri.shuralyov.com/gpu/mtl v0.0.0-20190408044501-666a987793e9/go.mod h1:H6x//7gZCb22OMCxBHrMx7a5I7Hp++hsVxbQ4BYO7hU=
 filippo.io/edwards25519 v1.0.0-rc.1 h1:m0VOOB23frXZvAOK44usCgLWvtsxIoMCTBGJZlpmGfU=
 filippo.io/edwards25519 v1.0.0-rc.1/go.mod h1:N1IkdkCkiLB6tki+MYJoSx2JTY9NUlxZE7eHn5EwJns=
@@ -111,6 +111,10 @@ github.com/containerd/ttrpc v1.2.3 h1:4jlhbXIGvijRtNC8F/5CpuJZ7yKOBFGFOOXg1bkISz
 github.com/containerd/ttrpc v1.2.3/go.mod h1:ieWsXucbb8Mj9PH0rXCw1i8IunRbbAiDkpXkbfflWBM=
 github.com/containerd/typeurl/v2 v2.1.1 h1:3Q4Pt7i8nYwy2KmQWIw2+1hTvwTE/6w9FqcttATPO/4=
 github.com/containerd/typeurl/v2 v2.1.1/go.mod h1:IDp2JFvbwZ31H8dQbEIY7sDl2L3o3HZj1hsSQlywkQ0=
+github.com/dagger/testctx v0.0.4 h1:In6AOkH1Q6LHWHAnMByViz9SFiXbYjKttGlO6GciE9s=
+github.com/dagger/testctx v0.0.4/go.mod h1:vfRtiq0HrtSux/H60iD1x7zYfrBgEtoDR1P3hJ523Oo=
+github.com/dagger/testctx/oteltest v0.0.1 h1:pIJCY6Tjf+RfRSJI2VFLJA8RXc30J9S2MINhEK99cyM=
+github.com/dagger/testctx/oteltest v0.0.1/go.mod h1:HOA6RdE7lWaawXCzI0jB0hJ+RhoXIgDoX6IB1dZGgtg=
 github.com/danwakefield/fnmatch v0.0.0-20160403171240-cbb64ac3d964 h1:y5HC9v93H5EPKqaS1UYVg1uYah5Xf51mBfIoWehClUQ=
 github.com/danwakefield/fnmatch v0.0.0-20160403171240-cbb64ac3d964/go.mod h1:Xd9hchkHSWYkEqJwUGisez3G1QY8Ryz0sdWrLPMGjLk=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
@@ -398,8 +402,8 @@ github.com/vbatts/tar-split v0.11.3 h1:hLFqsOLQ1SsppQNTMpkpPXClLDfC2A3Zgy9OUU+RV
 github.com/vbatts/tar-split v0.11.3/go.mod h1:9QlHN18E+fEH7RdG+QAJJcuya3rqT7eXSTY7wGrAokY=
 github.com/vektah/gqlparser/v2 v2.5.30 h1:EqLwGAFLIzt1wpx1IPpY67DwUujF1OfzgEyDsLrN6kE=
 github.com/vektah/gqlparser/v2 v2.5.30/go.mod h1:D1/VCZtV3LPnQrcPBeR/q5jkSQIPti0uYCP/RI0gIeo=
-github.com/vito/bass v0.12.1-0.20250130025852-f5df5959e93d h1:d6vupXpD+44W5QPVTbiK4Eh31isSK3JExTtiLHWHums=
-github.com/vito/bass v0.12.1-0.20250130025852-f5df5959e93d/go.mod h1:Z2fMIJT9wzelFQal9idKHcyjifNG/qxlMygx1k4hli0=
+github.com/vito/bass v0.12.1-0.20250921090032-9276dab8d842 h1:Ec4jomBGLlYoCaEu734hPI4UBsJqW72jKDsQbFVxBuI=
+github.com/vito/bass v0.12.1-0.20250921090032-9276dab8d842/go.mod h1:KvU1KBz28ikUwuYfm0FscVlJhyXqtPN2ds+EORwNdig=
 github.com/vito/invaders v0.0.2 h1:igc2c3fm89va6Qle9cEzKmFthYTeHse4Gnz6GWIlnpk=
 github.com/vito/invaders v0.0.2/go.mod h1:Pi5WKkYw/ru9Jm9VD2PXOuorZ86bx1BdNdEn35srCWk=
 github.com/vito/is v0.0.5 h1:Rkpwa1eZ372A4DFq92xblSkTm0X7aNUgEQ5fuM/RNK0=
