@@ -32,7 +32,7 @@ type Doug struct {
 
 func New(
 	// The workspace for the agent (i.e. the source code to edit).
-	// +optional
+	// +defaultPath="."
 	workspace *dagger.Directory,
 	// Additional packages to install in the container sandbox for the Bash tool.
 	// +optional
@@ -41,9 +41,6 @@ func New(
 	// +optional
 	sandbox *dagger.Container,
 ) *Doug {
-	if workspace == nil {
-		workspace = dag.Directory()
-	}
 	return &Doug{
 		Workspace:       workspace,
 		Sandbox:         sandbox,
