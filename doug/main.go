@@ -92,42 +92,6 @@ func (d *Doug) Agent(ctx context.Context, base *dagger.LLM) (*dagger.LLM, error)
 }
 
 /*
-Execute a bash command in a sandboxed environment
-
-USAGE NOTES:
-  - The environment will have `bash` and `git` installed, and NOTHING ELSE.
-    Rely on the project's tools for running tests, builds, lints, etc.
-  - Command output may be truncated, showing only the most recent logs.
-    Use the ReadLogs tool when necessary to read more.
-*/
-func (d *Doug) Bash(ctx context.Context, command string) (*dagger.Changeset, error) {
-	cmd := dag.Wolfi().
-		Container(dagger.WolfiContainerOpts{
-			Packages: []string{"bash", "git"},
-		}).
-		WithMountedDirectory("/workdir", d.Source).
-		WithWorkdir("/workdir").
-		WithExec([]string{"bash", "-c", command}, dagger.ContainerWithExecOpts{
-			ExperimentalPrivilegedNesting: true,
-			Expect:                        dagger.ReturnTypeAny,
-		})
-
-	exitCode, err := cmd.ExitCode(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	if exitCode != 0 {
-		fmt.Println("Command failed with exit code", exitCode)
-		// NOTE: we don't exit! we propagate the directory changes regardless.
-	} else {
-		fmt.Println("Command completed successfully.")
-	}
-
-	return cmd.Directory("/workdir").Changes(d.Source), nil
-}
-
-/*
 Reads a file from the project directory.
 
 HOW TO USE THIS TOOL:

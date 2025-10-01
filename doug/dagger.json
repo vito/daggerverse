@@ -1,14 +1,7 @@
 {
   "name": "doug",
-  "engineVersion": "v0.18.19-010101000000-dev-5f9e455b2beb",
+  "engineVersion": "v0.19.0",
   "sdk": {
     "source": "go"
-  },
-  "dependencies": [
-    {
-      "name": "wolfi",
-      "source": "github.com/dagger/dagger/modules/wolfi",
-      "pin": "f540bb83cb499af3f8ca2b7ea8a29dea07f7af7b"
-    }
-  ]
+  }
 }
