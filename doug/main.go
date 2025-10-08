@@ -100,6 +100,7 @@ func (d *Doug) Agent(ctx context.Context, base *dagger.LLM) (*dagger.LLM, error)
 Reads a file from the project directory.
 
 HOW TO USE THIS TOOL:
+  - Always use relative paths from the workspace root
   - Reads the first 2000 lines by default
   - Each line is prefixed with a line number followed by an arrow (→).
     Everything that follows the arrow is the literal content of the line.
@@ -107,7 +108,15 @@ HOW TO USE THIS TOOL:
   - If the file contents are empty, you will receive a warning.
   - If multiple files are interesting, you can read them all at once using multiple tool calls.
 */
-func (d *Doug) ReadFile(ctx context.Context, filePath string, offset *int, limit *int) (string, error) {
+func (d *Doug) ReadFile(
+	ctx context.Context,
+	// Relative path within the workspace
+	filePath string,
+	// Line offset to start reading from
+	offset *int,
+	// Limit the number of lines read
+	limit *int,
+) (string, error) {
 	filePath = d.normalizePath(filePath)
 
 	if limit == nil {
@@ -192,11 +201,21 @@ When making edits:
 
   - Do not leave the code in a broken state
 
-  - Always use absolute file paths (starting with /)
+  - Always use relative file paths
 
-    Remember: when making multiple file edits in a row to the same file, you should prefer to send all edits in a single message with multiple calls to this tool, rather than multiple messages with a single call each.
+Remember: when making multiple file edits in a row to the same file, you should prefer to send all edits in a single message with multiple calls to this tool, rather than multiple messages with a single call each.
 */
-func (d *Doug) EditFile(ctx context.Context, filePath, oldString, newString string, replaceAll *bool) (*dagger.Changeset, error) {
+func (d *Doug) EditFile(
+	ctx context.Context,
+	// Relative path within the workspace
+	filePath string,
+	// Unique search string to replace within the file, or non-unique if replaceAll is true
+	oldString string,
+	// New text content
+	newString string,
+	// Replace all occurrences
+	replaceAll *bool,
+) (*dagger.Changeset, error) {
 	filePath = d.normalizePath(filePath)
 
 	if replaceAll == nil {
@@ -307,7 +326,12 @@ TIPS:
 - Use the BasicShell tool to verify the correct location when creating new files
 - Combine with Glob and Grep tools to find and modify multiple files
 */
-func (d *Doug) Write(filePath, contents string) *dagger.Changeset {
+func (d *Doug) Write(
+	// Relative path within the workspace
+	filePath string,
+	// Complete file content to write
+	contents string,
+) *dagger.Changeset {
 	filePath = d.normalizePath(filePath)
 	return d.Source.WithNewFile(filePath, contents).Changes(d.Source)
 }
@@ -347,7 +371,11 @@ func (d *Doug) Write(filePath, contents string) *dagger.Changeset {
 // - For the most useful results, combine with the Grep tool: first find files with Glob, then search their contents with Grep
 // - When doing iterative exploration that may require multiple rounds of searching, consider using the Task tool instead
 // - Always check if results are truncated and refine your search pattern if needed
-func (d *Doug) Glob(ctx context.Context, pattern string) error {
+func (d *Doug) Glob(
+	ctx context.Context,
+	// Relative glob pattern to find within the workspace
+	pattern string,
+) error {
 	result, err := d.Source.Glob(ctx, pattern)
 	if err != nil {
 		return err
@@ -425,7 +453,25 @@ TIPS:
 - Always check if results are truncated and refine your search pattern if needed, or use ReadLogs to filter the result
 - Use literal_text=true when searching for exact text containing special characters like dots, parentheses, etc.
 */
-func (d *Doug) Grep(ctx context.Context, pattern string, literalText *bool, paths []string, glob []string, multiline *bool, content *bool, insensitive *bool, limit *int) (string, error) {
+func (d *Doug) Grep(
+	ctx context.Context,
+	// Regular expression pattern to grep for
+	pattern string,
+	// Treat pattern as literal text instead of a regular expression
+	literalText *bool,
+	// Relative paths within the workspace to limit the search
+	paths []string,
+	// Relative path globs within the workspace to limit the search
+	glob []string,
+	// Allow the pattern to span multiple lines
+	multiline *bool,
+	// Show the matching content
+	content *bool,
+	// Case-insensitive search
+	insensitive *bool,
+	// Limit the number of matches
+	limit *int,
+) (string, error) {
 	for i, filePath := range paths {
 		paths[i] = d.normalizePath(filePath)
 	}
@@ -482,7 +528,13 @@ USAGE NOTES:
   - The agent's outputs should generally be trusted
   - IMPORTANT: The agent runs in a copy-on-write sandboxed environment. Any writes made by the agent will not be visible to the user, but will be available to the agent's next invocation.
 */
-func (d *Doug) Task(ctx context.Context, description, prompt string) (string, error) {
+func (d *Doug) Task(
+	ctx context.Context,
+	// A brief description of the task to show to the user
+	description string,
+	// The prompt for the sub-agent
+	prompt string,
+) (string, error) {
 	systemPrompt, err := dag.CurrentModule().Source().File("prompts/task_system_prompt.md").Contents(ctx)
 	if err != nil {
 		return "", err
