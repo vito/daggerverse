@@ -31,14 +31,10 @@ type Doug struct {
 func New(
 	// +defaultPath="/"
 	source *dagger.Directory,
-	// Absolute path prefixes to strip from all paths, for compatibility with
-	// paths coming from other tools (i.e. MCP servers).
-	// +default="/workspace"
-	workspacePath string,
 ) *Doug {
 	return &Doug{
 		Source:        source,
-		WorkspacePath: workspacePath,
+		WorkspacePath: "/workspace",
 	}
 }
 
