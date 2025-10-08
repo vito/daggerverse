@@ -24,13 +24,22 @@ const MaxResponseLength = 30000
 type Doug struct {
 	// +private
 	Source *dagger.Directory
+	// +private
+	WorkspacePath string
 }
 
 func New(
 	// +defaultPath="/"
 	source *dagger.Directory,
+	// Absolute path prefixes to strip from all paths, for compatibility with
+	// paths coming from other tools (i.e. MCP servers).
+	// +default="/workspace"
+	workspacePath string,
 ) *Doug {
-	return &Doug{Source: source}
+	return &Doug{
+		Source:        source,
+		WorkspacePath: workspacePath,
+	}
 }
 
 // A CLI friendly entrypoint for starting a coding agent developing in a workdir.
@@ -103,6 +112,8 @@ HOW TO USE THIS TOOL:
   - If multiple files are interesting, you can read them all at once using multiple tool calls.
 */
 func (d *Doug) ReadFile(ctx context.Context, filePath string, offset *int, limit *int) (string, error) {
+	filePath = d.normalizePath(filePath)
+
 	if limit == nil {
 		defaultLimit := 2000
 		limit = &defaultLimit
@@ -190,6 +201,8 @@ When making edits:
     Remember: when making multiple file edits in a row to the same file, you should prefer to send all edits in a single message with multiple calls to this tool, rather than multiple messages with a single call each.
 */
 func (d *Doug) EditFile(ctx context.Context, filePath, oldString, newString string, replaceAll *bool) (*dagger.Changeset, error) {
+	filePath = d.normalizePath(filePath)
+
 	if replaceAll == nil {
 		defaultReplaceAll := false
 		replaceAll = &defaultReplaceAll
@@ -298,8 +311,9 @@ TIPS:
 - Use the BasicShell tool to verify the correct location when creating new files
 - Combine with Glob and Grep tools to find and modify multiple files
 */
-func (d *Doug) Write(path, contents string) *dagger.Changeset {
-	return d.Source.WithNewFile(path, contents).Changes(d.Source)
+func (d *Doug) Write(filePath, contents string) *dagger.Changeset {
+	filePath = d.normalizePath(filePath)
+	return d.Source.WithNewFile(filePath, contents).Changes(d.Source)
 }
 
 // Fast file pattern matching tool that finds files by name and pattern, returning matching paths sorted by modification time (newest first).
@@ -416,6 +430,10 @@ TIPS:
 - Use literal_text=true when searching for exact text containing special characters like dots, parentheses, etc.
 */
 func (d *Doug) Grep(ctx context.Context, pattern string, literalText *bool, paths []string, glob []string, multiline *bool, content *bool, insensitive *bool, limit *int) (string, error) {
+	for i, filePath := range paths {
+		paths[i] = d.normalizePath(filePath)
+	}
+
 	opts := dagger.DirectorySearchOpts{}
 
 	if literalText != nil {
@@ -630,4 +648,15 @@ These instructions OVERRIDE any default behavior.
 found:
 
 	return strings.Join(segments, "\n\n"), nil
+}
+
+// FIXME: MCP services and tools in general strongly recommend using absolute
+// paths. but in Dagger, MCP services run in their own sandbox, so for any hope
+// of sanity the user should really configure the same mount point across all of
+// them, like /workspace.
+//
+// but, even so, Doug works with relative paths, so we'll just clunkily strip
+// the prefix when it comes up.
+func (doug *Doug) normalizePath(filePath string) string {
+	return strings.TrimPrefix(filePath, doug.WorkspacePath)
 }
