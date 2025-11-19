@@ -31,6 +31,36 @@ This will prevent wasting time restarting `dockerd` if there are long pauses
 between suite runs (e.g. due to CI load). Don't worry about stopping it; it'll
 be cleaned up when the function exits.
 
+### Docker 29 Compatibility
+
+This module defaults to **Docker 28** for stability. Docker 29 introduced breaking
+changes that cause overlay mount failures in nested Docker-in-Docker scenarios
+(see [docker/cli#6646](https://github.com/docker/cli/issues/6646)).
+
+**Default behavior** (Docker 28, works out of the box):
+```go
+dag.Testcontainers().Setup(ctr)
+```
+
+**Opting into Docker 29:**
+```go
+dag.Testcontainers().
+    WithDockerVersion("29").
+    Setup(ctr)
+```
+
+**Custom storage driver** (if you encounter overlay issues):
+```go
+dag.Testcontainers().
+    WithDockerStorageDriver("vfs").  // Slower but always works
+    Setup(ctr)
+```
+
+**The module automatically:**
+- Creates a cache volume at `/var/lib/docker` to prevent nested overlay issues
+- Disables containerd-snapshotter for Docker 29+ compatibility
+- Falls back to `vfs` storage driver if overlay fails
+
 ### Demos
 
 ```sh
