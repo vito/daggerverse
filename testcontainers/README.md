@@ -56,10 +56,16 @@ dag.Testcontainers().
     Setup(ctr)
 ```
 
-**The module automatically:**
-- Creates a cache volume at `/var/lib/docker` to prevent nested overlay issues
-- Disables containerd-snapshotter for Docker 29+ compatibility
-- Falls back to `vfs` storage driver if overlay fails
+**Version-specific behavior:**
+
+**Docker 28 (default):**
+- Fast - uses overlay2 directly without cache overhead
+- No special configuration needed
+
+**Docker 29+:**
+- Automatically creates cache volume at `/var/lib/docker`
+- Disables containerd-snapshotter with `--feature containerd-snapshotter=false`
+- Slower but guaranteed to work in nested scenarios
 
 ### Demos
 

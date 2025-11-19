@@ -10,7 +10,7 @@ A module for all things Docker.
 ### Quick Start
 
 ```go
-// Use default configuration (Docker 28, auto cache)
+// Use default configuration (Docker 28, no cache)
 service := dag.Docker().Daemon().Service()
 ```
 
@@ -40,12 +40,22 @@ dag.Docker().Daemon().
 This module **defaults to Docker 28** for stability. Docker 29 introduced breaking
 changes with the containerd snapshotter that cause issues in nested DinD scenarios.
 
-**The module automatically:**
-- Creates a cache volume at `/var/lib/docker` (prevents nested overlay issues)
-- Disables `containerd-snapshotter` for Docker 29+ compatibility
-- Allows storage driver override for advanced use cases
+**Version-specific behavior:**
 
-See [docker/cli#6646](https://github.com/docker/cli/issues/6646) for details.
+**Docker 28 and earlier:**
+- No automatic cache volume (uses overlay2 directly on container filesystem)
+- No special flags needed
+- **Fast and works out of the box**
+
+**Docker 29 and later:**
+- Automatically creates cache volume at `/var/lib/docker` (prevents nested overlay issues)
+- Adds `--feature containerd-snapshotter=false` flag
+- Falls back to `vfs` storage driver if needed
+- **Slower but guaranteed to work in nested DinD scenarios**
+
+Users can always override with `WithCache()` or `WithStorageDriver()` for custom configurations.
+
+See [docker/cli#6646](https://github.com/docker/cli/issues/6646) for details on Docker 29 issues.
 
 ## Docker Compose
 
