@@ -1,0 +1,45 @@
+import Dagger
+
+type Package {
+  pub name: String!
+  pub version: String!
+  pub binding: String!
+}
+
+type Browserify {
+  let packages: [Package!]! = []
+
+  """
+  Installs a package that will be globally bound as window.<binding>.
+  """
+  pub withPackage(name: String!, version: String! = "latest", binding: String!): Browserify! {
+    self.packages += [Package(name, version, binding)]
+    self
+  }
+
+  """
+  Generates a bundle.js file from the configured packages.
+  """
+  pub bundle: File! {
+  	apko
+  	  .wolfi(["nodejs", "npm"])
+  		.withExec(["npm", "install", "-g", "browserify"])
+  		.withEnvVariable("PATH", "/usr/local/bin:$PATH", expand: true)
+  		.withWorkdir("/src")
+  		.withNewFile("main.js", main)
+  		.withExec(["npm", "install"] + packages.map { pkg => pkg.name+"@"+pkg.version })
+  		.withExec(["browserify", "main.js", "-o", "bundle.js"])
+  		.file("bundle.js")
+  }
+
+  """
+  The main.js file passed to browserify.
+
+  Exposed for troubleshooting.
+  """
+  pub main: String! {
+    packages
+      .map { pkg => "global.window."+pkg.binding+" = require('"+pkg.name+"');" }
+      .join("\n")
+  }
+}
