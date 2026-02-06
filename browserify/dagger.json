@@ -2,13 +2,13 @@
   "name": "browserify",
   "engineVersion": "v0.19.7",
   "sdk": {
-    "source": "github.com/vito/dang/dagger-sdk@import-dagger"
+    "source": "github.com/vito/dang/dagger-sdk@d56ca8d99b397a936363bbfaeab1bfef084901d8"
   },
   "dependencies": [
     {
       "name": "apko",
       "source": "github.com/vito/dang/mod/apko@main",
-      "pin": "acc64672d7540cb2f6804ac2b1f68ab5efd46f99"
+      "pin": "d56ca8d99b397a936363bbfaeab1bfef084901d8"
     }
   ]
 }

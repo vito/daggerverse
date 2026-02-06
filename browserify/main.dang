@@ -1,5 +1,3 @@
-import Dagger
-
 type Package {
   pub name: String!
   pub version: String!
