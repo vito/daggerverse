@@ -55,6 +55,10 @@ func (m *Compose) All(ctx context.Context) (*dagger.Service, error) {
 		return nil, err
 	}
 
+	if _, err = m.Dir.Export(ctx, wd); err != nil {
+		return nil, err
+	}
+
 	loaderConfig := types.ConfigDetails{
 		Version:     "3",
 		WorkingDir:  wd,
@@ -128,7 +132,7 @@ func (m *Compose) convert(project *types.Project, svc types.ServiceConfig) (*dag
 			}
 		}
 
-		ctr = ctr.Build(m.Dir.Directory(svc.Build.Context), dagger.ContainerBuildOpts{
+		ctr = m.Dir.Directory(svc.Build.Context).DockerBuild(dagger.DirectoryDockerBuildOpts{
 			Dockerfile: svc.Build.Dockerfile,
 			BuildArgs:  args,
 			Target:     svc.Build.Target,
@@ -180,10 +184,20 @@ func (m *Compose) convert(project *types.Project, svc types.ServiceConfig) (*dag
 		ctr = ctr.WithExposedPort(port)
 	}
 
+	wd, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+
 	for _, vol := range svc.Volumes {
 		switch vol.Type {
 		case types.VolumeTypeBind:
-			ctr = ctr.WithMountedDirectory(vol.Target, m.Dir.Directory(vol.Source))
+			src, err := filepath.Rel(wd, vol.Source)
+			if err != nil {
+				return nil, err
+			}
+
+			ctr = ctr.WithMountedDirectory(vol.Target, m.Dir.Directory(src))
 		case types.VolumeTypeVolume:
 			ctr = ctr.WithMountedCache(vol.Target, dag.CacheVolume(vol.Source))
 		default:
